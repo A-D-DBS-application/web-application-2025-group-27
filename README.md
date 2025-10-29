@@ -8,3 +8,7 @@ Ik ben Mattis
 Ik ben Leo 2
 
 ik ben nathan
+
+it config --global user.email "you@example.com"
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
