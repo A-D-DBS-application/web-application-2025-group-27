@@ -70,17 +70,23 @@ real API connector is implemented.
 
 ### Clay Integration
 
-`services/clay.py` defines a `ClayClient` stub.  Replace `fetch_company_bundle`
-with an actual HTTP client that:
-
-1. Authenticates with Clay.
-2. Fetches company, competitor, industry, and product data.
-3. Returns a normalized dictionary matching the contract documented in the
-   docstring.
+`services/clay.py` houses the Clay API client.  It authenticates with Clay,
+fetches company, competitor, industry, and product data, and returns the
+normalized dictionary consumed throughout the service layer.
 
 `ClaySyncService` consumes this payload and persists the graph into Supabase,
 upserting companies, industries, competitors, and products while tracking
 metadata.
+
+#### Configuring the Clay client
+
+- Export a Clay API key: `export CLAY_API_KEY="sk_live_..."`.
+- (Optional) Override the host: `export CLAY_BASE_URL="https://sandbox.api.clay.com/v1"`.
+- Tweak networking via `CLAY_TIMEOUT`, `CLAY_MAX_RETRIES`, and `CLAY_BACKOFF_FACTOR`.
+
+> The client uses the standard Python `urllib` stack, so no extra dependency is
+> required. Errors from Clay are mapped to `ClayError` subclasses, making it easy
+> to surface 4xx/5xx conditions to API consumers.
 
 ### Reporting & Watchdog
 
@@ -93,7 +99,7 @@ metadata.
 
 ### Next Steps / TODO
 
-- Implement the real Clay API calls in `ClayClient`.
+- Expand Clay field coverage as new attributes become available.
 - Wire an async or scheduled job that runs `ClaySyncService` weekly.
 - Schedule `ReportingService.generate_all_company_reports()` to feed the email
   pipeline.

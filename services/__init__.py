@@ -18,12 +18,16 @@ from services import ClaySyncService
 ```
 """
 
-from .clay import ClayClient
+from .clay import ClayAuthenticationError, ClayClient, ClayError, ClayRateLimitError, ClayTransientError
 from .ingestion import ClaySyncService
 from .reporting import ReportingService
 from .watchdog import WatchdogService
 
 __all__ = [
+    "ClayError",
+    "ClayAuthenticationError",
+    "ClayRateLimitError",
+    "ClayTransientError",
     "ClayClient",
     "ClaySyncService",
     "ReportingService",
