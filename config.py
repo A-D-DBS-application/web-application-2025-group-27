@@ -22,7 +22,10 @@ Production tip:
 - Load secrets/URIs from environment variables rather than hardcoding.
 """
 
-class Config: 
+import os
+
+
+class Config:
     """Base configuration loaded via `app.config.from_object(Config)`.
 
     Attributes:
@@ -30,7 +33,11 @@ class Config:
         SQLALCHEMY_DATABASE_URI (str): SQLAlchemy DSN used to open a TCP connection to the DB.
         SQLALCHEMY_TRACK_MODIFICATIONS (bool): Disables event system overhead when False.
     """
-    SECRET_KEY = 'your_secret_key'
-    SQLALCHEMY_DATABASE_URI = "postgresql://postgres.hwszjtatbzxyysezjdne:kuxpaDhohtuzpuwwy8@aws-1-eu-north-1.pooler.supabase.com:6543/postgres"
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "DATABASE_URL",
+        "postgresql://postgres.hwszjtatbzxyysezjdne:kuxpaDhohtuzpuwwy8@aws-1-eu-north-1.pooler.supabase.com:6543/postgres",
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
 
