@@ -1,176 +1,242 @@
-"""HTTP route registration and view functions.
+"""HTTP route registration and API endpoints for the startup intelligence app.
 
-Defines `register_routes(app, db)` that attaches routes to the provided Flask `app`.
-Views use SQLAlchemy ORM models (table schemas) to query the database and render
-Jinja2 templates via `render_template`.
+Philosophy
+----------
+- Keep route handlers thin: they orchestrate services and serialize results,
+  leaving business logic in `services/`.
+- Return JSON responses to support both web dashboards and automation hooks.
+- Provide health/readiness endpoints for deployment platforms.
 
-Networking terminology:
-- A route defines an HTTP endpoint (URL path) that clients call.
-- The server listens on a host/IP and port; requests arrive over TCP, responses are sent back over the same connection.
+Endpoint categories
+-------------------
+1. Health checks (`/health`) ensure the runtime is reachable.
+2. Company read APIs (`/companies`, `/companies/<id>`) feed dashboards.
+3. Sync entrypoint (`/sync/company`) triggers Clay ingestion (with optional
+   preloaded snapshots).
+4. Reporting endpoints aggregate data for weekly digests.
+5. Watchdog endpoint exposes diff structures for notifications.
 
-Key concepts:
-- `@app.route('/')` registers a URL rule for a view.
-- `GET /`: `Person.query.all()` uses the ORM to fetch all rows from the `people` table via the DB network connection.
-- `POST /`: reads form fields (`name`, `age`, `job`), creates a `Person`, commits via `db.session`.
-- `render_template('index.html', people=people)` passes the list to the template under the `people` key.
-
-Server-side validation vs client-side validation:
-- The HTML `required` attribute (client-side) can be bypassed (old browsers, JS disabled, API clients).
-- We still validate on the server (e.g., missing/invalid `pid`) to guarantee correctness and return clear errors.
-
-Flash messages and POST/Redirect/GET pattern:
-- This app uses Flask's `flash()` system for user feedback (success/error messages).
-- Flash messages are stored in the session and survive redirects, making them ideal for the POST/Redirect/GET pattern.
-- Why POST/Redirect/GET? After a POST (create/delete), we redirect to GET instead of re-rendering the template directly.
-  This prevents duplicate submissions if the user refreshes (they refresh the GET, not the POST) and provides cleaner URLs.
-- Why `people=[]` is no longer needed on POST errors:
-  - Previously: On POST errors, we re-rendered the template immediately with `render_template('index.html', people=people, error=...)`.
-    This required manually querying `people` even on errors, or passing `people=[]` as a fallback.
-  - Now: On POST errors, we call `flash('error message')` and `redirect(url_for('index'))`.
-    The redirect triggers a fresh GET request, which runs the normal GET handler that queries `people` from the database.
-    Flash messages are automatically displayed by the base template, so we don't need to pass an `error` context variable.
-  - Result: Cleaner separation of concerns (GET handles display, POST handles mutations), and we avoid duplicating the `people` query logic.
-
-Schema changes:
-- If you modify models (table schemas), remember to migrate:
-    flask db migrate -m "describe schema change"
-    flask db upgrade
+Each route documents expected payloads and responses so frontend engineers and
+automation scripts can integrate quickly.
 """
 
-from flask import render_template, request, redirect, url_for, flash
-from models import Person
+from __future__ import annotations
+
+import uuid
+from typing import Any, Dict, Optional
+
+from flask import abort, jsonify, request
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
+
+from models import (
+    Company,
+    CompanyCompetitor,
+    CompanyIndustry,
+    Product,
+    Profile,
+)
+from services import ClayClient, ClaySyncService, ReportingService, WatchdogService
 
 
 def register_routes(app, db):
-    """Register all URL routes on the given Flask application.
+    """Register JSON-first API endpoints used by the frontend and automation."""
 
-    Args:
-        app (Flask): The Flask application instance to attach routes to.
-        db (SQLAlchemy): The SQLAlchemy instance (not directly used here, useful for future use).
-    """
-    @app.route('/', methods=['GET', 'POST']) 
-    def index():
-        """Homepage that lists all people and accepts new entries.
+    def _serialize_company(company: Company) -> Dict[str, Any]:
+        """Convert a `Company` ORM object into a JSON-ready dictionary.
 
-        Detailed flow:
-        - GET:
-            1) Query all people via the ORM: `Person.query.all()`.
-            2) If the query fails (e.g., DB down), flash an error message and render the page
-               with `people=[]` so the template still works while surfacing the failure.
-        - POST:
-            1) Read form inputs `name`, `age`, `job` and coerce `age` (empty -> None).
-            2) Create a `Person` instance via attribute assignment (works around driver named-parameter quirks).
-            3) Validate `name`; if missing, flash and redirect (no manual re-render).
-            4) Add+commit inside try/except; on failure, rollback, flash, and redirect.
-            5) On success, flash a success message and redirect (POST/Redirect/GET).
-
-        Error handling rationale:
-        - Flash messages survive redirects and keep the controller slim; the template
-          only needs the `people` list.
-        - The only direct render after an error happens during GET when no data is available;
-          returning `people=[]` keeps the template stable.
-
-        Returns:
-            Response: The rendered HTML page.
+        Includes related industries, competitors, and products so a single call
+        returns the full context needed for dashboards or reports.
         """
-        
-        if request.method == 'GET':
-            try:
-                people = Person.query.all()
-                return render_template('index.html', people=people)
-            except Exception:
-                # If the DB is temporarily unavailable or query fails, flash and render an empty list
-                flash('Failed to load people from the database', 'error')
-                return render_template('index.html', people=[]), 500
-        
-        elif request.method == 'POST': # dus als je uw form submit gaat uw browser een post request sturen naar de '/' url
-            name = request.form.get('name')
-            age_str = request.form.get('age')
-            age = int(age_str) if age_str else None
-            job = request.form.get('job')
+        return {
+            "id": str(company.id),
+            "name": company.name,
+            "domain": company.domain,
+            "headline": company.headline,
+            "funding": company.funding,
+            "number_of_employees": company.number_of_employees,
+            "external_reference": company.external_reference,
+            "last_updated": company.last_updated.isoformat() if company.last_updated else None,
+            "source": company.source,
+            "industries": [
+                {
+                    "industry_id": str(link.industry_id),
+                    "name": link.industry.name if link.industry else None,
+                }
+                for link in company.industries
+            ],
+            "competitors": [
+                {
+                    "company_id": str(link.competitor_id),
+                    "name": link.competitor.name if link.competitor else None,
+                    "relationship_type": link.relationship_type,
+                }
+                for link in company.competitors
+            ],
+            "products": [
+                {
+                    "id": str(product.id),
+                    "name": product.name,
+                    "industry": product.industry.name if product.industry else None,
+                    "funding": product.funding,
+                }
+                for product in company.products
+            ],
+        }
 
-            person = Person()
-            person.name = name
-            person.age = age
-            person.job = job
-
-            # same as:
-            # person = Person(name=name, age=age, job=job) but the method above avoids the driver's name-paramater isssue
-
-            # Basic server-side validation (defense-in-depth vs client-side 'required')
-            if not person.name or person.name.strip() == '':
-                flash('Name is required', 'error')
-                return redirect(url_for('index')), 400
-
-            try:
-                db.session.add(person)
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-                flash('Failed to create person due to a database error', 'error')
-                return redirect(url_for('index')), 500
-
-            flash('Person created', 'success')
-            return redirect(url_for('index'))
-
-    @app.route('/delete', methods=['POST'])
-    def delete():
-        """Delete a person by their primary key (pid) provided via form data.
-
-        Detailed flow and validation:
-        - The HTML form sends `pid` using method POST (HTML doesn't support DELETE forms).
-        - Server-side validation:
-            * If `pid` is missing/invalid, flash an error and redirect back to index (client-side `required` is not enough).
-            * If no `Person` exists, flash an error and redirect (404).
-        - On success:
-            * Delete, commit, flash a success message, and redirect to index.
-            * If a DB error occurs, rollback, flash an error, and redirect (500).
-        """
-        pid_str = request.form.get('pid')
-        if not pid_str:
-            flash('Missing pid', 'error')
-            return redirect(url_for('index')), 400
+    def _parse_uuid(value: str) -> uuid.UUID:
+        """Parse a UUID string and raise an HTTP 400 on failure."""
         try:
-            pid = int(pid_str)
-        except ValueError:
-            flash('Invalid pid', 'error')
-            return redirect(url_for('index')), 400
-        # Look up without auto-404 so we can show a friendly message
-        person = Person.query.get(pid)
-        if person is None:
-            flash(f'Person with pid {pid} not found', 'error')
-            return redirect(url_for('index')), 404
+            return uuid.UUID(str(value))
+        except (TypeError, ValueError):
+            abort(400, description=f"Invalid UUID value: {value!r}")
+
+    @app.route("/", methods=["GET"])
+    def root():
+        """Simple landing endpoint to verify the API is reachable."""
+        return jsonify({"status": "ok", "message": "Startup intelligence API"})
+
+    @app.route("/health", methods=["GET"])
+    def health():
+        """Readiness probe used by hosting platforms (e.g., render.com)."""
+        return jsonify({"status": "healthy"})
+
+    @app.route("/companies", methods=["GET"])
+    def list_companies():
+        """Return all companies with related industries, competitors, and products."""
+        companies = (
+            db.session.query(Company)
+            .options(joinedload(Company.industries).joinedload(CompanyIndustry.industry))
+            .options(joinedload(Company.competitors).joinedload(CompanyCompetitor.competitor))
+            .options(joinedload(Company.products).joinedload(Product.industry))
+            .all()
+        )
+        return jsonify({"companies": [_serialize_company(company) for company in companies]})
+
+    @app.route("/companies/<company_id>", methods=["GET"])
+    def get_company(company_id: str):
+        """Return details for a single company identified by UUID."""
+        company_uuid = _parse_uuid(company_id)
+        company = (
+            db.session.query(Company)
+            .options(joinedload(Company.industries).joinedload(CompanyIndustry.industry))
+            .options(joinedload(Company.competitors).joinedload(CompanyCompetitor.competitor))
+            .options(joinedload(Company.products).joinedload(Product.industry))
+            .filter(Company.id == company_uuid)
+            .first()
+        )
+        if company is None:
+            abort(404, description=f"Company {company_id} not found")
+        return jsonify({"company": _serialize_company(company)})
+
+    @app.route("/companies/<company_id>/report", methods=["GET"])
+    def company_report(company_id: str):
+        """Return the weekly report payload for a company."""
+        company_uuid = _parse_uuid(company_id)
+        reporting_service = ReportingService(db.session)
         try:
-            db.session.delete(person)
-            db.session.commit()
-        except Exception: # Exception is the base class for all exceptions -> so this will catch all exceptions
-            db.session.rollback() # rollback the transaction -> so the database is not modified
-            flash('Failed to delete person due to a server error', 'error')
-            return redirect(url_for('index')), 500
-        flash('Person deleted', 'success') # this flash message gets stored in the session and will be displayed in the base.html template
-        return redirect(url_for('index')) # redirect to the home page, this then will show the flash message and the updated list of people
+            report = reporting_service.generate_company_weekly_report(company_uuid)
+        except ValueError as exc:
+            abort(404, description=str(exc))
+        return jsonify({"report": report})
 
-    @app.route('/details/<pid>', methods=['GET'])
-    def details(pid): # the pid stored in url as a variable you can access directly
-        """Display details of a person by their primary key (pid) provided via query parameter.
+    @app.route("/reports/companies", methods=["GET"])
+    def all_company_reports():
+        """Generate reports for every company (use sparingly in production)."""
+        reporting_service = ReportingService(db.session)
+        reports = reporting_service.generate_all_company_reports()
+        return jsonify({"reports": reports})
 
-        Detailed flow and validation:
-        - The HTML form sends `pid` using method GET (HTML doesn't support DELETE forms).
-        - Server-side validation:
-            * If `pid` is missing/invalid, flash an error and redirect back to index (client-side `required` is not enough).
-            * If no `Person` exists, flash an error and redirect (404).
+    @app.route("/sync/company", methods=["POST"])
+    def sync_company():
+        """Trigger a sync from Clay for one company.
 
-        Route: /details/<pid>
-        Method: GET
-        Using GET only: data is passed in the URL (via <a href>), not through a form submission, so POST isn't needed.
-        Only GET is needed because the page is accessed via a hyperlink (<a href="/details/...">), not a form submit. The PID comes from the URL path itself, so no POST data is sent.
-        Explanation:
-        Using GET (via URL) is better than POST in this case because:
-        - The data (person ID) is not sensitive and safe to appear in the URL.
-        - The route only retrieves and displays information — it does not modify server data.
-        - GET requests can be bookmarked, shared, and reloaded easily, improving usability.
-        - This route is typically accessed through a hyperlink (<a href="...">), not a form submission,
-        so no POST request is needed.
+        Expected JSON payload (minimal):
+
+        ```
+        {
+            "identifier": "example.com",
+            "snapshot": {...},   # optional pre-fetched Clay bundle
+            "source": "Clay"    # optional metadata override
+        }
+        ```
+
+        Returns the serialized company plus HTTP 202 to signal that work was
+        accepted (the operation is synchronous today but may become async later).
         """
-        person = Person.query.get(pid)
-        return render_template('details.html', person=person)
+        payload = request.get_json(silent=True) or {}
+        identifier = (
+            payload.get("identifier")
+            or payload.get("domain")
+            or payload.get("company_id")
+            or payload.get("name")
+        )
+        if not identifier:
+            abort(400, description="Payload must include an identifier/domain/name.")
+
+        snapshot = payload.get("snapshot")
+        clay_client = ClayClient()
+        sync_service = ClaySyncService(db.session, clay_client=clay_client)
+        try:
+            company = sync_service.sync_company(identifier, snapshot=snapshot, source=payload.get("source", "Clay"))
+        except NotImplementedError as exc:
+            abort(501, description=str(exc))
+        except SQLAlchemyError as exc:
+            db.session.rollback()
+            abort(500, description=f"Database error: {exc}")
+
+        return jsonify({"company": _serialize_company(company)}), 202
+
+    @app.route("/watchdog/company", methods=["POST"])
+    def watchdog_company():
+        """Compare a stored company with a fresh Clay snapshot.
+
+        Payload mirrors `/sync/company`; supply `snapshot` to avoid hitting Clay
+        during tests.  Response includes a diff map suitable for notifications.
+        """
+        payload = request.get_json(silent=True) or {}
+        identifier = (
+            payload.get("identifier")
+            or payload.get("domain")
+            or payload.get("company_id")
+            or payload.get("name")
+        )
+        if not identifier:
+            abort(400, description="Payload must include an identifier/domain/name.")
+
+        snapshot = payload.get("snapshot")
+        watchdog_service = WatchdogService(db.session, clay_client=ClayClient())
+        try:
+            diff = watchdog_service.detect_company_updates(identifier, snapshot=snapshot)
+        except NotImplementedError as exc:
+            abort(501, description=str(exc))
+        return jsonify(diff)
+
+    @app.route("/profiles/<profile_id>", methods=["GET"])
+    def get_profile(profile_id: str):
+        """Retrieve a profile with account and company relationships."""
+        profile_uuid = _parse_uuid(profile_id)
+        profile = (
+            db.session.query(Profile)
+            .options(joinedload(Profile.company))
+            .options(joinedload(Profile.account))
+            .filter(Profile.id == profile_uuid)
+            .first()
+        )
+        if profile is None:
+            abort(404, description=f"Profile {profile_id} not found")
+
+        return jsonify(
+            {
+                "profile": {
+                    "id": str(profile.id),
+                    "email": profile.email,
+                    "first_name": profile.first_name,
+                    "last_name": profile.last_name,
+                    "role": profile.role,
+                    "phone_number": profile.phone_number,
+                    "company_id": str(profile.company_id) if profile.company_id else None,
+                    "account_id": str(profile.account_id),
+                }
+            }
+        )
