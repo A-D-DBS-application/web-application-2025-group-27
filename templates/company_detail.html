@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}{{ company.name }} Overview{% endblock %}
+
+{% block content %}
+<a class="breadcrumb" href="{{ url_for('homepage') }}">← Back to dashboard</a>
+
+<section class="company-hero">
+    <div>
+        <h1>{{ company.name }}</h1>
+        {% if company.headline %}
+            <p class="headline">{{ company.headline }}</p>
+        {% endif %}
+        <ul class="meta-list prominent">
+            {% if company.domain %}
+                <li><strong>Domain:</strong> <a href="https://{{ company.domain }}" target="_blank" rel="noopener noreferrer">{{ company.domain }}</a></li>
+            {% endif %}
+            {% if company.number_of_employees %}
+                <li><strong>Team size:</strong> {{ company.number_of_employees }}</li>
+            {% endif %}
+            {% if company.funding %}
+                <li><strong>Funding:</strong> €{{ "{:,.0f}".format(company.funding) }}</li>
+            {% endif %}
+            {% if company.external_reference %}
+                <li><strong>External ref:</strong> {{ company.external_reference }}</li>
+            {% endif %}
+        </ul>
+    </div>
+    {% if company.industries %}
+        <ul class="pill-list stacked">
+            {% for link in company.industries %}
+                {% if link.industry %}
+                    <li class="pill">{{ link.industry.name }}</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
+
+<section class="section">
+    <div class="section-header">
+        <h2>Products</h2>
+        <p>Products recorded in the `product` table for this company.</p>
+    </div>
+    {% if company.products %}
+        <div class="card-grid small">
+            {% for product in company.products %}
+                <article class="product-card">
+                    <h3>{{ product.name }}</h3>
+                    {% if product.industry %}
+                        <p><strong>Industry:</strong> {{ product.industry.name }}</p>
+                    {% endif %}
+                    {% if product.funding %}
+                        <p><strong>Funding:</strong> €{{ "{:,.0f}".format(product.funding) }}</p>
+                    {% endif %}
+                    {% if product.description %}
+                        <p>{{ product.description }}</p>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-state">No products recorded yet.</p>
+    {% endif %}
+</section>
+
+<section class="section">
+    <div class="section-header">
+        <h2>Competitors</h2>
+        <p>Based on `company_competitor` relationships.</p>
+    </div>
+    {% if competitor_links %}
+        <ul class="list-table">
+            {% for competitor in competitor_links %}
+                <li>
+                    <div>
+                        <strong>{{ competitor.name }}</strong>
+                        {% if competitor.relationship_type %}
+                            <span class="tag">{{ competitor.relationship_type }}</span>
+                        {% endif %}
+                    </div>
+                    {% if competitor.notes %}
+                        <span class="list-subtext">{{ competitor.notes }}</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="empty-state">No competitor relationships stored.</p>
+    {% endif %}
+</section>
+
+<section class="section">
+    <div class="section-header">
+        <h2>Team Members</h2>
+        <p>Profiles linked via the `profile` table.</p>
+    </div>
+    {% if team_members %}
+        <div class="card-grid small">
+            {% for member in team_members %}
+                <article class="profile-card">
+                    <h3>{{ member.first_name }} {{ member.last_name }}</h3>
+                    <ul class="meta-list">
+                        {% if member.role %}
+                            <li><strong>Role:</strong> {{ member.role }}</li>
+                        {% endif %}
+                        {% if member.email %}
+                            <li><strong>Email:</strong> <a href="mailto:{{ member.email }}">{{ member.email }}</a></li>
+                        {% endif %}
+                        {% if member.phone_number %}
+                            <li><strong>Phone:</strong> <a href="tel:{{ member.phone_number }}">{{ member.phone_number }}</a></li>
+                        {% endif %}
+                        {% if member.country %}
+                            <li><strong>Country:</strong> {{ member.country }}</li>
+                        {% endif %}
+                    </ul>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-state">No profiles linked to this company yet.</p>
+    {% endif %}
+</section>
+{% endblock %}
+
