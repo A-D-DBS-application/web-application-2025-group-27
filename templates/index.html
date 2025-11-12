@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Flask App Home{% endblock %}
+
+{% block content %}
+    <h1> Hello DataBase </h1>
+    {# Flash messages are rendered globally in base.html; no need for an 'error' context block here. #}
+    <ul>
+        {% for person in people %} <!-- loop over Person objects provided by the Flask route function (e.g., index()) via render_template(..., people=people) -->
+            <li>
+                {{ person }} <!-- prints the Person via its __repr__ so it's human-readable -->
+                <form action="{{ url_for('delete') }}" method="POST" style="display: inline; margin-left: 8px;"> <!-- posts to the Flask delete route; inline so the button sits next to the person -->
+                    <input type="hidden" name="pid" value="{{ person.pid }}"> <!-- pass this person's primary key to the server without showing it in the UI, jinja recognizes person as an object and can retrieve its attributes -->
+                    <input type="submit" value="Delete"> <!-- submit the form; browser sends pid as form data to the server  -->
+                </form>
+                <a href="{{ url_for('details', pid=person.pid) }}" style="display: inline; margin-left: 8px;">Details</a> <!-- url_for looks like details/<pid> -->
+            </li> 
+        {% endfor %}
+    </ul>
+
+    <!-- We now want a form that allows for the creation of a new person -->
+
+    <h3> New Person </h3>
+    <form action = "{{ url_for('index') }}" method="POST">  <!-- je kan dan de data van de form accesses vian request.get -> deze zal dan een dictionary teruggeven met als key the name --> 
+        <input type="text" name="name" placeholder="Name" required> <br> <!-- The name attribute is used when sending data in a form submission. Hier required want is een PK? -> nee maar snap de logic -->
+        <input type="number" name="age" placeholder="Age" > <br>
+        <input type="text" name="job" placeholder="Job" > <br>
+        <input type="submit" value="Create" > <br> <!-- submit form; browser sends fields as form data -->
+
+    </form>
+
+{% endblock %} 
+
+<!--
+Recommendation on client-side vs server-side handling:
+- For this simple CRUD page, prefer plain HTML forms + server-side handling (what we use now).
+  Reasons: less complexity, full-page reloads are acceptable, robust by default, progressive enhancement.
+- Add JS (fetch/async) when you need richer UX: inline updates without reloads, spinners, retries/backoff,
+  offline handling, modal confirms, or optimistic UI.
+- If staying server-side, consider flash messages in base.html to show success/error notices after redirects.
+-->
+
+
+
+<!--
+By removing action and keeping method="POST", the browser will still posts to the current URL ("/") automatically. 
+This also guarantees that the request hits your defined route @app.route('/', methods=['GET','POST']).
+
+-->
+
+<!--
+
+You should always use either a button or a submit input inside of the form element, regardless of your method of form submission. You've also misunderstood the form action attribute- the action, if used, refers to the URL to which the browser should send a request to on form submission.
+
+If you have your own back end application and you want the simplest possible form submission method, you should just use an action and method attribute method on your form element, put a button or submit input inside it, and then when someone submits the form the browser will automatically navigate to the URL that you put as the form action using the HTTP method that you specified, and you can handle that request on your back end as you choose.
+
+In the context where you don't have your own back end that handles that kind of form submission, or you want to do something a bit fancier than just navigating the user to another page, you instead need to use JS and listen for the 'submit' event on the form element. If you're using Firebase as your datastore directly from your client-side application then it sounds like that's what you'll need to do.
+
+If you're new to working with forms I highly recommend this guide from MDN- the sections on 'sending form data' and 'sending forms through Javascript' are especially relevant.
+
+-->
