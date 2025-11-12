@@ -214,3 +214,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# Own
+
+web-application-2025-group-27.code-workspace
+.DS_Store
