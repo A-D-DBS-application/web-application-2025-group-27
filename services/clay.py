@@ -77,6 +77,7 @@ class ClayClient:
         self.timeout = float(os.getenv("CLAY_TIMEOUT", self.timeout))
         self.max_retries = int(os.getenv("CLAY_MAX_RETRIES", self.max_retries))
         self.backoff_factor = float(os.getenv("CLAY_BACKOFF_FACTOR", self.backoff_factor))
+        self.company_endpoint = os.getenv("CLAY_COMPANY_ENDPOINT", "/companies/{identifier}")
 
         headers = {
             "Accept": "application/json",
@@ -203,9 +204,20 @@ class ClayClient:
         return decoded
 
     def _build_company_url(self, identifier: str) -> str:
-        query = parse.urlencode({"include": "company,competitors,industries,products"})
+        query_params = {"include": "company,competitors,industries,products"}
+        endpoint = (self.company_endpoint or "").strip() or "/companies/{identifier}"
+
+        # Support Clay lookup endpoints like /companies:lookup that expect query params instead of path params.
+        if "{identifier}" not in endpoint or ":lookup" in endpoint:
+            # Use query parameter; default Clay lookup uses domain parameter.
+            query_params.setdefault("domain", identifier)
+            query_string = parse.urlencode(query_params)
+            return f"{self.base_url}{endpoint}?{query_string}"
+
         safe_identifier = parse.quote(identifier, safe="")
-        return f"{self.base_url}/companies/{safe_identifier}?{query}"
+        formatted_endpoint = endpoint.format(identifier=safe_identifier)
+        query_string = parse.urlencode(query_params)
+        return f"{self.base_url}{formatted_endpoint}?{query_string}"
 
     def _compute_backoff(self, attempt: int) -> float:
         return self.backoff_factor * (2 ** attempt)
