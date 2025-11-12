@@ -82,6 +82,7 @@ metadata.
 
 - Export a Clay API key: `export CLAY_API_KEY="sk_live_..."`.
 - (Optional) Override the host: `export CLAY_BASE_URL="https://sandbox.api.clay.com/v1"`.
+- (Optional) Point to the latest Clay endpoint: `export CLAY_COMPANY_ENDPOINT="/companies:lookup"`.
 - Tweak networking via `CLAY_TIMEOUT`, `CLAY_MAX_RETRIES`, and `CLAY_BACKOFF_FACTOR`.
 
 > The client uses the standard Python `urllib` stack, so no extra dependency is
