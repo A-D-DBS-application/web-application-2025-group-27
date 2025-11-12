@@ -1,61 +1,188 @@
 {% extends "base.html" %}
 
-{% block title %}Flask App Home{% endblock %}
+{% block title %}{{ company_card.name if company_card else "Workspace" }} Workspace{% endblock %}
 
 {% block content %}
-    <h1> Hello DataBase </h1>
-    {# Flash messages are rendered globally in base.html; no need for an 'error' context block here. #}
-    <ul>
-        {% for person in people %} <!-- loop over Person objects provided by the Flask route function (e.g., index()) via render_template(..., people=people) -->
-            <li>
-                {{ person }} <!-- prints the Person via its __repr__ so it's human-readable -->
-                <form action="{{ url_for('delete') }}" method="POST" style="display: inline; margin-left: 8px;"> <!-- posts to the Flask delete route; inline so the button sits next to the person -->
-                    <input type="hidden" name="pid" value="{{ person.pid }}"> <!-- pass this person's primary key to the server without showing it in the UI, jinja recognizes person as an object and can retrieve its attributes -->
-                    <input type="submit" value="Delete"> <!-- submit the form; browser sends pid as form data to the server  -->
-                </form>
-                <a href="{{ url_for('details', pid=person.pid) }}" style="display: inline; margin-left: 8px;">Details</a> <!-- url_for looks like details/<pid> -->
-            </li> 
-        {% endfor %}
-    </ul>
+<header class="hero">
+    <div>
+        {% if current_profile %}
+            <p class="eyebrow">Welcome back, {{ current_profile.first_name }}.</p>
+        {% endif %}
+        <h1>{{ company_card.name if company_card else "Your company" }} intelligence workspace</h1>
+        <p>Every insight you see is scoped to your organisation. Use this space to monitor products, industry positioning, and the people that power your mission.</p>
+    </div>
+    {% if company_card %}
+        <div class="hero-actions">
+            <a class="cta" href="{{ url_for('company_overview', company_id=company_card.id) }}">Open company dossier</a>
+            {% if company_card.last_updated %}
+                <p class="hero-subline">Last refreshed {{ company_card.last_updated.strftime('%d %b %Y') }}</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</header>
 
-    <!-- We now want a form that allows for the creation of a new person -->
+<section class="stats-grid" aria-label="Key metrics">
+    <article class="stat-card">
+        <span class="stat-label">Active team members</span>
+        <span class="stat-value">{{ metrics.profile_count }}</span>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Tracked products</span>
+        <span class="stat-value">{{ metrics.product_count }}</span>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Industry tags</span>
+        <span class="stat-value">{{ metrics.industry_count }}</span>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Competitors monitored</span>
+        <span class="stat-value">{{ company_card.competitors|length if company_card else 0 }}</span>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Total disclosed funding</span>
+        <span class="stat-value">€{{ "{:,.0f}".format(metrics.total_funding or 0) }}</span>
+    </article>
+</section>
 
-    <h3> New Person </h3>
-    <form action = "{{ url_for('index') }}" method="POST">  <!-- je kan dan de data van de form accesses vian request.get -> deze zal dan een dictionary teruggeven met als key the name --> 
-        <input type="text" name="name" placeholder="Name" required> <br> <!-- The name attribute is used when sending data in a form submission. Hier required want is een PK? -> nee maar snap de logic -->
-        <input type="number" name="age" placeholder="Age" > <br>
-        <input type="text" name="job" placeholder="Job" > <br>
-        <input type="submit" value="Create" > <br> <!-- submit form; browser sends fields as form data -->
+{% if company_card %}
+<section id="company" class="section">
+    <div class="section-header">
+        <div>
+            <h2>Company Snapshot</h2>
+            <p>Quick overview of {{ company_card.name }} sourced from the core `company` table.</p>
+        </div>
+    </div>
+    <article class="company-card">
+        <header>
+            <h3>{{ company_card.name }}</h3>
+            {% if company_card.domain %}
+                <a class="pill" href="https://{{ company_card.domain }}" target="_blank" rel="noopener noreferrer">{{ company_card.domain }}</a>
+            {% endif %}
+        </header>
+        {% if company_card.headline %}
+            <p class="headline">{{ company_card.headline }}</p>
+        {% endif %}
+        <ul class="meta-list">
+            {% if company_card.number_of_employees %}
+                <li><strong>Team size:</strong> {{ company_card.number_of_employees }}</li>
+            {% endif %}
+            {% if company_card.funding %}
+                <li><strong>Funding:</strong> €{{ "{:,.0f}".format(company_card.funding) }}</li>
+            {% endif %}
+            {% if company_card.external_reference %}
+                <li><strong>External reference:</strong> {{ company_card.external_reference }}</li>
+            {% endif %}
+        </ul>
+        {% if company_card.products %}
+            <div class="stacked-block">
+                <strong>Products</strong>
+                <ul class="pill-list">
+                    {% for product in company_card.products[:4] %}
+                        <li class="pill">{{ product.name }}</li>
+                    {% endfor %}
+                    {% if company_card.products|length > 4 %}
+                        <li class="pill transparent">+{{ company_card.products|length - 4 }} more</li>
+                    {% endif %}
+                </ul>
+            </div>
+        {% endif %}
+        {% if company_card.industries %}
+            <div class="stacked-block">
+                <strong>Industry focus</strong>
+                <ul class="pill-list subdued">
+                    {% for link in company_card.industries %}
+                        {% if link.industry %}
+                            <li class="pill">{{ link.industry.name }}</li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+    </article>
+</section>
+{% endif %}
 
-    </form>
+<section id="industries" class="section">
+    <div class="section-header">
+        <div>
+            <h2>Industry Signals</h2>
+            <p>Tags applied to your company to guide positioning and investment focus.</p>
+        </div>
+    </div>
+    {% if top_industries %}
+        <ol class="industry-list">
+            {% for industry in top_industries %}
+                <li>
+                    <span class="industry-name">{{ industry.name }}</span>
+                    <span class="industry-count">{{ industry.company_count }} company</span>
+                </li>
+            {% endfor %}
+        </ol>
+    {% else %}
+        <p class="empty-state">No industry tags yet. Enrich your record to see positioning insights.</p>
+    {% endif %}
+</section>
 
-{% endblock %} 
+<section id="competitors" class="section">
+    <div class="section-header">
+        <div>
+            <h2>Competitive Landscape</h2>
+            <p>Relationships stored in `company_competitor`, curated for your organisation.</p>
+        </div>
+    </div>
+    {% if company_card and company_card.competitors %}
+        <ul class="list-table">
+            {% for link in company_card.competitors %}
+                {% if link.competitor %}
+                    <li>
+                        <div>
+                            <strong>{{ link.competitor.name }}</strong>
+                            {% if link.relationship_type %}
+                                <span class="tag">{{ link.relationship_type }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="list-subtext">Tracked via {{ link.competitor.domain or "internal record" }}</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="empty-state">Add competitor relationships to benchmark your positioning.</p>
+    {% endif %}
+</section>
 
-<!--
-Recommendation on client-side vs server-side handling:
-- For this simple CRUD page, prefer plain HTML forms + server-side handling (what we use now).
-  Reasons: less complexity, full-page reloads are acceptable, robust by default, progressive enhancement.
-- Add JS (fetch/async) when you need richer UX: inline updates without reloads, spinners, retries/backoff,
-  offline handling, modal confirms, or optimistic UI.
-- If staying server-side, consider flash messages in base.html to show success/error notices after redirects.
--->
+<section id="contacts" class="section">
+    <div class="section-header">
+        <div>
+            <h2>Key Contacts</h2>
+            <p>Profiles linked to your company through the `profile` table.</p>
+        </div>
+    </div>
+    {% if highlighted_profiles %}
+        <div class="card-grid small">
+            {% for profile in highlighted_profiles %}
+                <article class="profile-card">
+                    <h3>{{ profile.first_name }} {{ profile.last_name }}</h3>
+                    <ul class="meta-list">
+                        {% if profile.role %}
+                            <li><strong>Role:</strong> {{ profile.role }}</li>
+                        {% endif %}
+                        {% if profile.email %}
+                            <li><strong>Email:</strong> <a href="mailto:{{ profile.email }}">{{ profile.email }}</a></li>
+                        {% endif %}
+                        {% if profile.phone_number %}
+                            <li><strong>Phone:</strong> <a href="tel:{{ profile.phone_number }}">{{ profile.phone_number }}</a></li>
+                        {% endif %}
+                        {% if profile.country %}
+                            <li><strong>Country:</strong> {{ profile.country }}</li>
+                        {% endif %}
+                    </ul>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-state">Profiles will appear as soon as accounts are linked to your company.</p>
+    {% endif %}
+</section>
+{% endblock %}
 
-
-
-<!--
-By removing action and keeping method="POST", the browser will still posts to the current URL ("/") automatically. 
-This also guarantees that the request hits your defined route @app.route('/', methods=['GET','POST']).
-
--->
-
-<!--
-
-You should always use either a button or a submit input inside of the form element, regardless of your method of form submission. You've also misunderstood the form action attribute- the action, if used, refers to the URL to which the browser should send a request to on form submission.
-
-If you have your own back end application and you want the simplest possible form submission method, you should just use an action and method attribute method on your form element, put a button or submit input inside it, and then when someone submits the form the browser will automatically navigate to the URL that you put as the form action using the HTTP method that you specified, and you can handle that request on your back end as you choose.
-
-In the context where you don't have your own back end that handles that kind of form submission, or you want to do something a bit fancier than just navigating the user to another page, you instead need to use JS and listen for the 'submit' event on the form element. If you're using Firebase as your datastore directly from your client-side application then it sounds like that's what you'll need to do.
-
-If you're new to working with forms I highly recommend this guide from MDN- the sections on 'sending form data' and 'sending forms through Javascript' are especially relevant.
-
--->

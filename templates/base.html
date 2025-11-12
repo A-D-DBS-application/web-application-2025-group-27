@@ -7,6 +7,24 @@
     <link rel="stylesheet" href="/static/styles.css"> <!-- hardcoded path: /static/styles.css points to the static/styles.css file -->
 </head>
 <body>
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('homepage') if current_company else url_for('login') }}">Startup Intelligence</a>
+        <nav class="site-nav" aria-label="Primary navigation">
+            {% if current_company %}
+                <a href="{{ url_for('homepage') }}#company">Company</a>
+                <a href="{{ url_for('homepage') }}#industries">Industries</a>
+                <a href="{{ url_for('homepage') }}#contacts">Contacts</a>
+                <span class="nav-context">Scope: {{ current_company.name }}</span>
+                <form class="logout-form" action="{{ url_for('logout') }}" method="POST">
+                    <button type="submit" class="logout-button">Log out</button>
+                </form>
+            {% else %}
+                <a href="{{ url_for('signup') }}">Sign up</a>
+                <a href="{{ url_for('login') }}">Log in</a>
+            {% endif %}
+            <a href="{{ url_for('health') }}">Health JSON</a>
+        </nav>
+    </header>
     {# Flash message system: Flask stores messages in the session when you call flash() in routes.
        get_flashed_messages() retrieves all pending flash messages and clears them from the session
        (they're "one-time" messages that display once and then disappear).
@@ -25,6 +43,8 @@
       {% endif %}
     {% endwith %}
     {# Main content block: child templates (like index.html) extend this base and fill this block #}
-    {% block content %}{% endblock %}
+    <main class="layout">
+        {% block content %}{% endblock %}
+    </main>
 </body>
 </html>

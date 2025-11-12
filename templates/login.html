@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In{% endblock %}
+
+{% block content %}
+<section class="auth-wrapper">
+    <article class="auth-card">
+        <h1>Access your company workspace</h1>
+        <p class="auth-footer">Enter your work email to load the company data linked to your profile.</p>
+        <form method="POST" novalidate>
+            <div class="form-field">
+                <label for="email">Work email</label>
+                <input id="email" class="input-control" type="email" name="email" placeholder="you@company.com" required autocomplete="email">
+            </div>
+            <button type="submit" class="primary-button">Sign in</button>
+        </form>
+        <p class="auth-footer">Need access? Ask your workspace admin to create a profile that links you to the right company record.</p>
+    </article>
+</section>
+{% endblock %}
+
