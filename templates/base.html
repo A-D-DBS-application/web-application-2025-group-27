@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}Flask App{% endblock %}</title>
+    {# Serve static stylesheet for layout/flash message styling. Flask automatically serves from /static. #}
+    <link rel="stylesheet" href="/static/styles.css"> <!-- hardcoded path: /static/styles.css points to the static/styles.css file -->
+</head>
+<body>
+    {# Flash message system: Flask stores messages in the session when you call flash() in routes.
+       get_flashed_messages() retrieves all pending flash messages and clears them from the session
+       (they're "one-time" messages that display once and then disappear).
+       with_categories=true means each message is returned as a tuple (category, message) instead of just the message string.
+       Categories (e.g., 'error', 'success') allow styling different message types differently. #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {# Check if any flash messages exist before rendering the list #}
+      {% if messages %}
+        <ul class="flash-messages"> {# class hooks for styling success/error differently via CSS #}
+          {# Loop through each flashed message, unpacking the (category, message) tuple #}
+          {% for category, msg in messages %}
+            {# Display the message with the category as a CSS class for styling (e.g., class="error" or class="success") #}
+            <li class="{{ category }}">{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    {# Main content block: child templates (like index.html) extend this base and fill this block #}
+    {% block content %}{% endblock %}
+</body>
+</html>
