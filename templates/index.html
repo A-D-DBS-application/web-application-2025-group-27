@@ -64,7 +64,13 @@
         {% endif %}
         <ul class="meta-list">
             {% if company_card.number_of_employees %}
-                <li><strong>Team size:</strong> {{ company_card.number_of_employees }}</li>
+                <li><strong>Team size:</strong> {{ "{:,}".format(company_card.number_of_employees) }} employees</li>
+            {% endif %}
+            {% if company_card.industry %}
+                <li><strong>Industry:</strong> {{ company_card.industry }}</li>
+            {% endif %}
+            {% if company_card.country %}
+                <li><strong>Country:</strong> {{ company_card.country }}</li>
             {% endif %}
             {% if company_card.funding %}
                 <li><strong>Funding:</strong> €{{ "{:,.0f}".format(company_card.funding) }}</li>

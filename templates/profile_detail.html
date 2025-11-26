@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile.first_name }} {{ profile.last_name }} - Profile{% endblock %}
+
+{% block content %}
+<a class="breadcrumb" href="{{ url_for('homepage') }}">← Back to dashboard</a>
+
+<section class="company-hero">
+    <div>
+        <h1>{{ profile.first_name }} {{ profile.last_name }}</h1>
+        {% if profile.role %}
+            <p class="headline">{{ profile.role }}</p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="section">
+    <div class="section-header">
+        <h2>Contact Information</h2>
+    </div>
+    <ul class="meta-list prominent">
+        {% if profile.email %}
+            <li><strong>Email:</strong> <a href="mailto:{{ profile.email }}">{{ profile.email }}</a></li>
+        {% endif %}
+        {% if profile.phone_number %}
+            <li><strong>Phone:</strong> <a href="tel:{{ profile.phone_number }}">{{ profile.phone_number }}</a></li>
+        {% endif %}
+        {% if profile.country %}
+            <li><strong>Country:</strong> {{ profile.country }}</li>
+        {% endif %}
+        {% if profile.date_of_birth %}
+            <li><strong>Date of Birth:</strong> {{ profile.date_of_birth.strftime('%Y-%m-%d') }}</li>
+        {% endif %}
+    </ul>
+</section>
+
+{% if profile.company %}
+<section class="section">
+    <div class="section-header">
+        <h2>Company</h2>
+    </div>
+    <div class="card-grid small">
+        <article class="profile-card">
+            <h3><a href="{{ url_for('company_overview', company_id=profile.company.id) }}">{{ profile.company.name }}</a></h3>
+            <ul class="meta-list">
+                {% if profile.company.domain %}
+                    <li><strong>Domain:</strong> <a href="https://{{ profile.company.domain }}" target="_blank" rel="noopener noreferrer">{{ profile.company.domain }}</a></li>
+                {% endif %}
+                {% if profile.company.headline %}
+                    <li><strong>Headline:</strong> {{ profile.company.headline }}</li>
+                {% endif %}
+            </ul>
+        </article>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}
+

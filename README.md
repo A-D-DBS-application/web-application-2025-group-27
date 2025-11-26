@@ -1,9 +1,9 @@
 ## Startup Intelligence Platform – Backend Overview
 
 This repository hosts a Flask + SQLAlchemy backend that powers the startup
-intelligence platform.  It integrates with Supabase (PostgreSQL) and ingests
-company data from Clay so we can map competitive landscapes, generate weekly
-reports, and later trigger change notifications (watchdog).
+intelligence platform.  It integrates with Supabase (PostgreSQL) for data
+persistence and provides APIs for managing companies, profiles, and user
+authentication.
 
 ### Key Components
 
@@ -11,10 +11,10 @@ reports, and later trigger change notifications (watchdog).
 - `models.py` – ORM models aligned with the Supabase schema.  All primary keys
   are UUIDs, companies/competitors are linked through bridge tables, and key
   entities track `last_updated` + `source` metadata for reporting/watchdog.
-- `services/` – Service layer encapsulating Clay ingestion, reporting, and
-  watchdog logic.
-- `routes.py` – JSON-based API endpoints for syncing data, reading companies,
-  generating reports, and running watchdog checks.
+- `routes.py` – HTML-based routes for viewing companies, profiles, and user
+  authentication.
+- `services/company_api.py` – Simple API client that fetches company information
+  from Abstract API when users sign up.
 
 ### Database Schema (simplified)
 
@@ -35,79 +35,97 @@ Supabase.
    ```bash
    pip install -r requirements.txt
    ```
-2. Export the Supabase connection string (optional – defaults to the URI in
-   `config.py`):
+
+2. **Configure Environment Variables:**
+   
+   Create a `.env` file in the project root (copy from `.env.example`):
    ```bash
-   set FLASK_APP=run.py
-   set DATABASE_URL=postgresql://...
+   cp .env.example .env
    ```
-3. Create/upgrade the schema (after model changes):
+   
+   Then edit `.env` and add your actual values:
+   ```bash
+   # Required
+   SECRET_KEY=your-secret-key-here-change-this-in-production
+   
+   # Optional - Database (defaults to config.py value if not set)
+   # DATABASE_URL=postgresql://user:password@host:port/database
+   
+   # Optional - Abstract API (for company data enrichment during signup)
+   ABSTRACT_API_KEY=your-abstract-api-key-here
+   ```
+   
+   **Important:** 
+   - The `.env` file is in `.gitignore` and will not be committed to git
+   - Never commit your actual `.env` file with real keys
+   - Use `.env.example` as a template for other developers
+   
+   **Getting an Abstract API Key (optional):**
+   - Go to https://www.abstractapi.com
+   - Sign up for a free account (includes 100 free requests per month)
+   - Navigate to the Company Enrichment API page
+   - Get your API key and add it to your `.env` file
+   - If no API key is provided, signup will work but won't fetch company data automatically
+
+3. Set Flask app (if not using .env):
+   ```bash
+   export FLASK_APP=run.py
+   ```
+
+4. Create/upgrade the schema (after model changes):
    ```bash
    flask db migrate -m "sync models"
    flask db upgrade
    ```
-4. Start the dev server:
+
+5. Start the dev server:
    ```bash
    python run.py
    ```
 
-### API Surface
+### Routes
 
 | Method | Path                          | Description                                      |
 |--------|------------------------------|--------------------------------------------------|
-| GET    | `/health`                     | Health probe                                     |
-| GET    | `/companies`                  | List all companies with competitors/industries   |
-| GET    | `/companies/<uuid>`           | Company details                                  |
-| GET    | `/companies/<uuid>/report`    | Weekly report payload for a company              |
-| GET    | `/reports/companies`          | Reports for every company                        |
-| POST   | `/sync/company`               | Trigger Clay sync (requires identifier/snapshot) |
-| POST   | `/watchdog/company`           | Compare stored data vs latest Clay snapshot      |
-| GET    | `/profiles/<uuid>`            | Retrieve a profile with account/company links    |
+| GET    | `/health`                     | Health probe (returns plain text "OK")            |
+| GET    | `/`                           | Homepage dashboard for logged-in users           |
+| GET    | `/login`                      | Login page                                       |
+| GET    | `/signup`                     | Sign up page                                     |
+| POST   | `/logout`                     | Logout (redirects to login)                      |
+| GET    | `/companies`                  | Redirects to company overview                     |
+| GET    | `/companies/<uuid>`           | Redirects to company overview                     |
+| GET    | `/companies/<uuid>/overview`  | Company details page                             |
+| GET    | `/profiles/<uuid>`            | Profile details page                             |
+| GET    | `/companies/<uuid>/report`    | Not available                                    |
+| GET    | `/reports/companies`          | Not available                                    |
+| POST   | `/sync/company`               | Not available                                    |
+| POST   | `/watchdog/company`           | Not available                                    |
 
-All routes return JSON responses.  `POST /sync/company` currently calls a
-placeholder Clay client – provide `snapshot` data in the request body until the
-real API connector is implemented.
+All routes return HTML pages (except `/health` which returns plain text).
 
-### Clay Integration
+### Company Data Enrichment
 
-`services/clay.py` houses the Clay API client.  It authenticates with Clay,
-fetches company, competitor, industry, and product data, and returns the
-normalized dictionary consumed throughout the service layer.
+When a user signs up, the system automatically tries to fetch company information
+from Abstract API if an `ABSTRACT_API_KEY` is configured and a company domain is
+provided. The API will populate:
 
-`ClaySyncService` consumes this payload and persists the graph into Supabase,
-upserting companies, industries, competitors, and products while tracking
-metadata.
+- Company domain (if not provided)
+- Company name (if not provided)
+- Company description/headline
+- Number of employees
+- Industry information
+- Country information
+- Funding information (if available)
+- Company logo
 
-#### Configuring the Clay client
+**Note:** Abstract API requires a company domain to look up companies. If only a
+company name is provided during signup, the API call will be skipped.
 
-- Export a Clay API key: `export CLAY_API_KEY="sk_live_..."`.
-- (Optional) Override the host: `export CLAY_BASE_URL="https://sandbox.api.clay.com/v1"`.
-- (Optional) Point to the latest Clay endpoint: `export CLAY_COMPANY_ENDPOINT="/companies:lookup"`.
-- Tweak networking via `CLAY_TIMEOUT`, `CLAY_MAX_RETRIES`, and `CLAY_BACKOFF_FACTOR`.
-
-> The client uses the standard Python `urllib` stack, so no extra dependency is
-> required. Errors from Clay are mapped to `ClayError` subclasses, making it easy
-> to surface 4xx/5xx conditions to API consumers.
-
-### Reporting & Watchdog
-
-- `ReportingService` aggregates company, profile, competitor, industry, and
-  product information into a weekly report payload.  Hook this into your email
-  scheduler to send one report per company.
-- `WatchdogService` compares a new Clay snapshot with the stored record and
-  produces a diff structure.  Extend it to trigger notifications (email, Slack,
-  etc.) when key metrics change.
+If no API key is set, signup still works but company data must be entered manually.
 
 ### Next Steps / TODO
 
-- Expand Clay field coverage as new attributes become available.
-- Wire an async or scheduled job that runs `ClaySyncService` weekly.
-- Schedule `ReportingService.generate_all_company_reports()` to feed the email
-  pipeline.
-- Extend `WatchdogService` to inspect competitor/industry collections and
-  dispatch alerts.
 - Add Alembic migrations reflecting the new UUID schema (run `flask db migrate`
   after pulling these changes).
 
-Questions? Ping the backend squad in Slack.  The service layer and routes are
-designed to stay stable while we evolve the Supabase schema and automation.
+Questions? Ping the backend squad in Slack.

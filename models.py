@@ -74,6 +74,8 @@ class Company(UUIDPrimaryKeyMixin, MetadataMixin, db.Model):
     headline = db.Column(db.Text)
     number_of_employees = db.Column(db.BigInteger)
     funding = db.Column(db.BigInteger)
+    industry = db.Column(db.String(255))  # Industry from API
+    country = db.Column(db.String(255))  # Country from API
     andere_criteria = db.Column(db.Text)
     external_reference = db.Column(db.String(255))  # Clay record id / URL
 

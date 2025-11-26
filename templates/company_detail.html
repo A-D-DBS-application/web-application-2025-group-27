@@ -16,7 +16,13 @@
                 <li><strong>Domain:</strong> <a href="https://{{ company.domain }}" target="_blank" rel="noopener noreferrer">{{ company.domain }}</a></li>
             {% endif %}
             {% if company.number_of_employees %}
-                <li><strong>Team size:</strong> {{ company.number_of_employees }}</li>
+                <li><strong>Team size:</strong> {{ "{:,}".format(company.number_of_employees) }} employees</li>
+            {% endif %}
+            {% if company.industry %}
+                <li><strong>Industry:</strong> {{ company.industry }}</li>
+            {% endif %}
+            {% if company.country %}
+                <li><strong>Country:</strong> {{ company.country }}</li>
             {% endif %}
             {% if company.funding %}
                 <li><strong>Funding:</strong> €{{ "{:,.0f}".format(company.funding) }}</li>
