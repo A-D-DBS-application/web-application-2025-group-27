@@ -99,8 +99,13 @@ def signup():
             link_company_industries(company, api_data.get("industries", []))
             db.session.flush()
             
-            raw_competitors = fetch_similar_companies(domain=company_domain, limit=5)
+            # Request more competitors to account for filtering
+            # Filter may remove 30-50% due to same-domain, subsidiaries, etc.
+            # Request 10 to balance cost (50 credits) with getting ~5 after filtering
+            raw_competitors = fetch_similar_companies(domain=company_domain, limit=10)
             filtered_competitors = filter_competitors(company_name, company_domain, raw_competitors)
+            # Limit to 5 competitors to keep consistent behavior
+            filtered_competitors = filtered_competitors[:5]
             if filtered_competitors:
                 for competitor_data in filtered_competitors:
                     competitor_domain = competitor_data.get("domain")

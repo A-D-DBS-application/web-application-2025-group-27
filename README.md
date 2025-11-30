@@ -95,9 +95,7 @@ The API will populate:
 
 ### Core Algorithm
 
-The `services/algorithm.py` module contains:
-- `analyze_company_position()` - Analyzes company metrics and returns insights
-- `find_similar_companies()` - Finds companies in the same industry
+The `services/algorithm.py` module is reserved for future algorithm implementations.
 
 ### MVP Simplifications
 
