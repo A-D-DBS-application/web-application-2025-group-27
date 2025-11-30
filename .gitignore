@@ -220,9 +220,10 @@ __marimo__/
 
 web-application-2025-group-27.code-workspace
 .DS_Store
-
-# Tools output
-tools/md/
+TODO.md
+docs/
+migrations/
+tools/
 
 # Backup files
 backups/
