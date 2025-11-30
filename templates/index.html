@@ -1,188 +1,251 @@
 {% extends "base.html" %}
 
-{% block title %}{{ company_card.name if company_card else "Workspace" }} Workspace{% endblock %}
+{% block title %}{{ company.name if company else "Workspace" }} Workspace{% endblock %}
 
 {% block content %}
 <header class="hero">
     <div>
-        {% if current_profile %}
-            <p class="eyebrow">Welcome back, {{ current_profile.first_name }}.</p>
+        {% if current_user %}
+            <p class="eyebrow">Welcome back, {{ current_user.first_name }}.</p>
         {% endif %}
-        <h1>{{ company_card.name if company_card else "Your company" }} intelligence workspace</h1>
-        <p>Every insight you see is scoped to your organisation. Use this space to monitor products, industry positioning, and the people that power your mission.</p>
+        <h1>{{ company.name if company else "Your company" }} intelligence workspace</h1>
+        <p>Simple dashboard for tracking your company and team.</p>
     </div>
-    {% if company_card %}
-        <div class="hero-actions">
-            <a class="cta" href="{{ url_for('company_overview', company_id=company_card.id) }}">Open company dossier</a>
-            {% if company_card.last_updated %}
-                <p class="hero-subline">Last refreshed {{ company_card.last_updated.strftime('%d %b %Y') }}</p>
-            {% endif %}
-        </div>
-    {% endif %}
 </header>
 
+{% if company %}
 <section class="stats-grid" aria-label="Key metrics">
     <article class="stat-card">
-        <span class="stat-label">Active team members</span>
-        <span class="stat-value">{{ metrics.profile_count }}</span>
+        <span class="stat-label">Team members</span>
+        <span class="stat-value">{{ metrics.user_count }}</span>
     </article>
     <article class="stat-card">
-        <span class="stat-label">Tracked products</span>
-        <span class="stat-value">{{ metrics.product_count }}</span>
-    </article>
-    <article class="stat-card">
-        <span class="stat-label">Industry tags</span>
+        <span class="stat-label">Industries</span>
         <span class="stat-value">{{ metrics.industry_count }}</span>
     </article>
     <article class="stat-card">
-        <span class="stat-label">Competitors monitored</span>
-        <span class="stat-value">{{ company_card.competitors|length if company_card else 0 }}</span>
+        <span class="stat-label">Competitors tracked</span>
+        <span class="stat-value">{{ metrics.competitor_count }}</span>
     </article>
     <article class="stat-card">
-        <span class="stat-label">Total disclosed funding</span>
-        <span class="stat-value">€{{ "{:,.0f}".format(metrics.total_funding or 0) }}</span>
+        <span class="stat-label">Total funding</span>
+        <span class="stat-value">
+            {% if metrics.total_funding and metrics.total_funding > 0 %}
+                {% if metrics.total_funding >= 1000000000 %}
+                    €{{ "%.1f"|format(metrics.total_funding / 1000000000) }}B
+                {% elif metrics.total_funding >= 1000000 %}
+                    €{{ "%.1f"|format(metrics.total_funding / 1000000) }}M
+                {% elif metrics.total_funding >= 1000 %}
+                    €{{ "%.1f"|format(metrics.total_funding / 1000) }}K
+                {% else %}
+                    €{{ "{:,.0f}".format(metrics.total_funding) }}
+                {% endif %}
+            {% else %}
+                <span style="opacity: 0.5;">Not available</span>
+            {% endif %}
+        </span>
     </article>
 </section>
 
-{% if company_card %}
-<section id="company" class="section">
+<section class="section">
     <div class="section-header">
-        <div>
-            <h2>Company Snapshot</h2>
-            <p>Quick overview of {{ company_card.name }} sourced from the core `company` table.</p>
-        </div>
+        <h2>Company Information</h2>
     </div>
     <article class="company-card">
         <header>
-            <h3>{{ company_card.name }}</h3>
-            {% if company_card.domain %}
-                <a class="pill" href="https://{{ company_card.domain }}" target="_blank" rel="noopener noreferrer">{{ company_card.domain }}</a>
+            <h3>{{ company.name }}</h3>
+            {% if company.domain %}
+                <a class="pill" href="https://{{ company.domain }}" target="_blank">{{ company.domain }}</a>
             {% endif %}
         </header>
-        {% if company_card.headline %}
-            <p class="headline">{{ company_card.headline }}</p>
+        <footer style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+            <a href="{{ url_for('main.company_detail') }}" class="primary-button" style="width: 100%; text-align: center; text-decoration: none; display: block;">
+                View Full Company Details →
+            </a>
+        </footer>
+        {% if company.headline %}
+            <p class="headline">{{ company.headline }}</p>
         {% endif %}
         <ul class="meta-list">
-            {% if company_card.number_of_employees %}
-                <li><strong>Team size:</strong> {{ company_card.number_of_employees }}</li>
+            {% if company.website %}
+                <li><strong>Website:</strong> <a href="{{ company.website }}" target="_blank" rel="noopener">{{ company.website }}</a></li>
             {% endif %}
-            {% if company_card.funding %}
-                <li><strong>Funding:</strong> €{{ "{:,.0f}".format(company_card.funding) }}</li>
+            {% if company.domain %}
+                <li><strong>Domain:</strong> {{ company.domain }}</li>
             {% endif %}
-            {% if company_card.external_reference %}
-                <li><strong>External reference:</strong> {{ company_card.external_reference }}</li>
+            {% if company.number_of_employees %}
+                <li><strong>Team size:</strong> {{ "{:,}".format(company.number_of_employees) }} employees</li>
+            {% endif %}
+            {% if company.country %}
+                <li><strong>Country:</strong> {{ company.country }}</li>
             {% endif %}
         </ul>
-        {% if company_card.products %}
-            <div class="stacked-block">
-                <strong>Products</strong>
-                <ul class="pill-list">
-                    {% for product in company_card.products[:4] %}
-                        <li class="pill">{{ product.name }}</li>
-                    {% endfor %}
-                    {% if company_card.products|length > 4 %}
-                        <li class="pill transparent">+{{ company_card.products|length - 4 }} more</li>
+        
+        {% if company.funding and company.funding > 0 %}
+        <div class="stacked-block">
+            <strong>Financial Information</strong>
+            <ul class="meta-list">
+                <li><strong>Total Funding:</strong> 
+                    {% if company.funding >= 1000000000 %}
+                        €{{ "%.1f"|format(company.funding / 1000000000) }}B
+                    {% elif company.funding >= 1000000 %}
+                        €{{ "%.1f"|format(company.funding / 1000000) }}M
+                    {% elif company.funding >= 1000 %}
+                        €{{ "%.1f"|format(company.funding / 1000) }}K
+                    {% else %}
+                        €{{ "{:,.0f}".format(company.funding) }}
                     {% endif %}
+                </li>
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if company.updated_at %}
+        <div class="meta-info">
+            <small>Last updated: {{ company.updated_at.strftime('%Y-%m-%d %H:%M') if company.updated_at else 'Never' }}</small>
+        </div>
+        {% endif %}
+        {% if industries %}
+            <div class="stacked-block">
+                <strong>Industries</strong>
+                <ul class="pill-list">
+                    {% for industry in industries %}
+                        <li class="pill">{{ industry.name }}</li>
+                    {% endfor %}
                 </ul>
             </div>
-        {% endif %}
-        {% if company_card.industries %}
+        {% elif company.industry %}
             <div class="stacked-block">
-                <strong>Industry focus</strong>
-                <ul class="pill-list subdued">
-                    {% for link in company_card.industries %}
-                        {% if link.industry %}
-                            <li class="pill">{{ link.industry.name }}</li>
-                        {% endif %}
-                    {% endfor %}
+                <strong>Industry</strong>
+                <ul class="pill-list">
+                    <li class="pill">{{ company.industry }}</li>
                 </ul>
             </div>
         {% endif %}
     </article>
 </section>
+
+{% if industries %}
+<section class="section">
+    <div class="section-header">
+        <h2>Industries</h2>
+        <p>Industries this company belongs to (many-to-many relationship).</p>
+    </div>
+    <ul class="list-table">
+        {% for industry in industries %}
+            <li>
+                <div>
+                    <strong>{{ industry.name }}</strong>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+</section>
 {% endif %}
 
-<section id="industries" class="section">
+{% if competitor_view_models and metrics.competitor_count > 0 %}
+<section class="section">
     <div class="section-header">
-        <div>
-            <h2>Industry Signals</h2>
-            <p>Tags applied to your company to guide positioning and investment focus.</p>
-        </div>
+        <h2>Competitors</h2>
+        <p>{{ metrics.competitor_count }} competitor{{ 's' if metrics.competitor_count != 1 else '' }} tracked</p>
     </div>
-    {% if top_industries %}
-        <ol class="industry-list">
-            {% for industry in top_industries %}
-                <li>
-                    <span class="industry-name">{{ industry.name }}</span>
-                    <span class="industry-count">{{ industry.company_count }} company</span>
-                </li>
-            {% endfor %}
-        </ol>
-    {% else %}
-        <p class="empty-state">No industry tags yet. Enrich your record to see positioning insights.</p>
-    {% endif %}
-</section>
-
-<section id="competitors" class="section">
-    <div class="section-header">
-        <div>
-            <h2>Competitive Landscape</h2>
-            <p>Relationships stored in `company_competitor`, curated for your organisation.</p>
-        </div>
-    </div>
-    {% if company_card and company_card.competitors %}
-        <ul class="list-table">
-            {% for link in company_card.competitors %}
-                {% if link.competitor %}
-                    <li>
-                        <div>
-                            <strong>{{ link.competitor.name }}</strong>
-                            {% if link.relationship_type %}
-                                <span class="tag">{{ link.relationship_type }}</span>
-                            {% endif %}
-                        </div>
-                        <span class="list-subtext">Tracked via {{ link.competitor.domain or "internal record" }}</span>
-                    </li>
-                {% endif %}
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p class="empty-state">Add competitor relationships to benchmark your positioning.</p>
-    {% endif %}
-</section>
-
-<section id="contacts" class="section">
-    <div class="section-header">
-        <div>
-            <h2>Key Contacts</h2>
-            <p>Profiles linked to your company through the `profile` table.</p>
-        </div>
-    </div>
-    {% if highlighted_profiles %}
-        <div class="card-grid small">
-            {% for profile in highlighted_profiles %}
-                <article class="profile-card">
-                    <h3>{{ profile.first_name }} {{ profile.last_name }}</h3>
+    <div class="card-grid">
+        {% for view_model in competitor_view_models %}
+            {% set link = view_model.link %}
+            {% if link and link.competitor %}
+                <article class="company-card small">
+                    <header>
+                        <h3>{{ link.competitor.name }}</h3>
+                        {% if link.competitor.domain %}
+                            <a class="pill" href="https://{{ link.competitor.domain }}" target="_blank">{{ link.competitor.domain }}</a>
+                        {% endif %}
+                    </header>
+                    {% if link.competitor.headline %}
+                        <p class="headline">{{ link.competitor.headline[:100] }}{% if link.competitor.headline|length > 100 %}...{% endif %}</p>
+                    {% endif %}
                     <ul class="meta-list">
-                        {% if profile.role %}
-                            <li><strong>Role:</strong> {{ profile.role }}</li>
+                        {% if link.competitor.number_of_employees %}
+                            <li><strong>Employees:</strong> {{ "{:,}".format(link.competitor.number_of_employees) }}</li>
                         {% endif %}
-                        {% if profile.email %}
-                            <li><strong>Email:</strong> <a href="mailto:{{ profile.email }}">{{ profile.email }}</a></li>
+                        {% if link.competitor.country %}
+                            <li><strong>Country:</strong> {{ link.competitor.country }}</li>
                         {% endif %}
-                        {% if profile.phone_number %}
-                            <li><strong>Phone:</strong> <a href="tel:{{ profile.phone_number }}">{{ profile.phone_number }}</a></li>
+                        {% if link.competitor.funding and link.competitor.funding > 0 %}
+                            <li><strong>Funding:</strong> 
+                                {% if link.competitor.funding >= 1000000000 %}
+                                    €{{ "%.1f"|format(link.competitor.funding / 1000000000) }}B
+                                {% elif link.competitor.funding >= 1000000 %}
+                                    €{{ "%.1f"|format(link.competitor.funding / 1000000) }}M
+                                {% elif link.competitor.funding >= 1000 %}
+                                    €{{ "%.1f"|format(link.competitor.funding / 1000) }}K
+                                {% else %}
+                                    €{{ "{:,.0f}".format(link.competitor.funding) }}
+                                {% endif %}
+                            </li>
                         {% endif %}
-                        {% if profile.country %}
-                            <li><strong>Country:</strong> {{ profile.country }}</li>
+                    </ul>
+                    {% set has_industries = false %}
+                    {% for industry_link in link.competitor.industries %}
+                        {% if industry_link.industry %}
+                            {% set has_industries = true %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if has_industries %}
+                        <div class="stacked-block" style="margin-top: 0.75rem;">
+                            <strong>Industries</strong>
+                            <ul class="pill-list">
+                                {% for industry_link in link.competitor.industries %}
+                                    {% if industry_link.industry %}
+                                        <li class="pill">{{ industry_link.industry.name }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% elif link.competitor.industry %}
+                        <div class="stacked-block" style="margin-top: 0.75rem;">
+                            <strong>Industry</strong>
+                            <ul class="pill-list">
+                                <li class="pill">{{ link.competitor.industry }}</li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                    <footer style="margin-top: auto; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                        <a href="{{ url_for('main.competitor_detail', competitor_id=link.competitor.id) }}" class="primary-button" style="width: 100%; text-align: center; text-decoration: none; display: block;">
+                            View Full Details →
+                        </a>
+                    </footer>
+                </article>
+            {% endif %}
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section class="section">
+    <div class="section-header">
+        <h2>Team Members</h2>
+    </div>
+    {% if users %}
+        <div class="card-grid small">
+            {% for user in users %}
+                <article class="profile-card">
+                    <h3>{{ user.first_name }} {{ user.last_name }}</h3>
+                    <ul class="meta-list">
+                        {% if user.role %}
+                            <li><strong>Role:</strong> {{ user.role }}</li>
+                        {% endif %}
+                        {% if user.email %}
+                            <li><strong>Email:</strong> <a href="mailto:{{ user.email }}">{{ user.email }}</a></li>
                         {% endif %}
                     </ul>
                 </article>
             {% endfor %}
         </div>
     {% else %}
-        <p class="empty-state">Profiles will appear as soon as accounts are linked to your company.</p>
+        <p class="empty-state">No team members yet.</p>
     {% endif %}
 </section>
+{% else %}
+<p class="empty-state">No company information available. Please contact support.</p>
+{% endif %}
 {% endblock %}
-

@@ -1,113 +1,121 @@
-## Startup Intelligence Platform – Backend Overview
+## Startup Intelligence Platform – MVP Backend
 
-This repository hosts a Flask + SQLAlchemy backend that powers the startup
-intelligence platform.  It integrates with Supabase (PostgreSQL) and ingests
-company data from Clay so we can map competitive landscapes, generate weekly
-reports, and later trigger change notifications (watchdog).
+Simplified Flask MVP for startup intelligence tracking. This is a minimal implementation focusing on core functionality only.
 
 ### Key Components
 
-- `app.py` – Flask application factory and SQLAlchemy initialization.
-- `models.py` – ORM models aligned with the Supabase schema.  All primary keys
-  are UUIDs, companies/competitors are linked through bridge tables, and key
-  entities track `last_updated` + `source` metadata for reporting/watchdog.
-- `services/` – Service layer encapsulating Clay ingestion, reporting, and
-  watchdog logic.
-- `routes.py` – JSON-based API endpoints for syncing data, reading companies,
-  generating reports, and running watchdog checks.
+- `app.py` – Flask application factory
+- `models.py` – Simplified ORM models (User, Company, CompanyCompetitor)
+- `routes/auth.py` – Authentication routes (login, signup, logout)
+- `routes/main.py` – Main application routes (homepage, health)
+- `services/algorithm.py` – Core algorithm for company analysis
+- `services/company_api.py` – CompanyEnrich API client for company data enrichment
+- `utils/auth.py` – Authentication utilities
 
-### Database Schema (simplified)
+### Database Schema (Simplified)
 
 ```
-account ──1─┐
-            ▼
-         profile ──► company ─┬─ products
-                              ├─ company_competitor (self-join)
-                              └─ company_industry ─► industries
+user ──► company ──► company_competitor ──► company
 ```
 
-All relationships use UUID foreign keys and cascade rules compatible with
-Supabase.
+- **User**: email, name, company_id, role
+- **Company**: name, domain, headline, basic info
+- **CompanyCompetitor**: simple competitor relationships
 
 ### Running Locally
 
-1. Install dependencies (create a virtualenv first if desired):
+1. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-2. Export the Supabase connection string (optional – defaults to the URI in
-   `config.py`):
+
+2. Configure environment variables:
+   
+   **Option A: Copy example file (recommended)**
    ```bash
-   set FLASK_APP=run.py
-   set DATABASE_URL=postgresql://...
+   cp .env.example .env
+   # Then edit .env and add your values
    ```
-3. Create/upgrade the schema (after model changes):
+   
+   **Option B: Create .env manually**
    ```bash
-   flask db migrate -m "sync models"
+   # Create .env file with:
+   SECRET_KEY=your-secret-key-here
+   DATABASE_URL=postgresql://user:password@host:port/database
+   
+   # Optional: CompanyEnrich API (for automatic company data enrichment)
+   # Get your API key from https://app.companyenrich.com/
+   COMPANY_ENRICH_API_KEY=your-companyenrich-api-key-here
+   ```
+   
+   See `docs/API_SETUP.md` for detailed API key setup instructions.
+
+3. Create/upgrade the schema:
+   ```bash
+   flask db migrate -m "Initial MVP schema"
    flask db upgrade
    ```
+
 4. Start the dev server:
    ```bash
    python run.py
    ```
 
-### API Surface
+### Routes
 
-| Method | Path                          | Description                                      |
-|--------|------------------------------|--------------------------------------------------|
-| GET    | `/health`                     | Health probe                                     |
-| GET    | `/companies`                  | List all companies with competitors/industries   |
-| GET    | `/companies/<uuid>`           | Company details                                  |
-| GET    | `/companies/<uuid>/report`    | Weekly report payload for a company              |
-| GET    | `/reports/companies`          | Reports for every company                        |
-| POST   | `/sync/company`               | Trigger Clay sync (requires identifier/snapshot) |
-| POST   | `/watchdog/company`           | Compare stored data vs latest Clay snapshot      |
-| GET    | `/profiles/<uuid>`            | Retrieve a profile with account/company links    |
+| Method | Path      | Description                    |
+|--------|-----------|--------------------------------|
+| GET    | `/health`  | Health check                   |
+| GET    | `/`        | Homepage dashboard             |
+| GET    | `/login`   | Login page                     |
+| POST   | `/login`   | Login (email-based, no password)|
+| GET    | `/signup`  | Sign up page                   |
+| POST   | `/signup`  | Create account and company     |
+| POST   | `/logout`  | Logout                         |
 
-All routes return JSON responses.  `POST /sync/company` currently calls a
-placeholder Clay client – provide `snapshot` data in the request body until the
-real API connector is implemented.
+### Authentication
 
-### Clay Integration
+- **Simple email-based login** - no passwords required (MVP requirement)
+- Users are linked to companies
+- Session-based authentication
 
-`services/clay.py` houses the Clay API client.  It authenticates with Clay,
-fetches company, competitor, industry, and product data, and returns the
-normalized dictionary consumed throughout the service layer.
+### Company Data Enrichment
 
-`ClaySyncService` consumes this payload and persists the graph into Supabase,
-upserting companies, industries, competitors, and products while tracking
-metadata.
+When a user signs up with a company domain, the system automatically tries to fetch company information from [CompanyEnrich API](https://docs.companyenrich.com/docs/getting-started) if a `COMPANY_ENRICH_API_KEY` is configured.
 
-#### Configuring the Clay client
+The API will populate:
+- Company domain
+- Company description/headline
+- Number of employees
+- Industry information
+- Country information
+- Funding information (if available)
 
-- Export a Clay API key: `export CLAY_API_KEY="sk_live_..."`.
-- (Optional) Override the host: `export CLAY_BASE_URL="https://sandbox.api.clay.com/v1"`.
-- (Optional) Point to the latest Clay endpoint: `export CLAY_COMPANY_ENDPOINT="/companies:lookup"`.
-- Tweak networking via `CLAY_TIMEOUT`, `CLAY_MAX_RETRIES`, and `CLAY_BACKOFF_FACTOR`.
+**Note:** If no API key is set, signup still works but company data must be entered manually.
 
-> The client uses the standard Python `urllib` stack, so no extra dependency is
-> required. Errors from Clay are mapped to `ClayError` subclasses, making it easy
-> to surface 4xx/5xx conditions to API consumers.
+### Core Algorithm
 
-### Reporting & Watchdog
+The `services/algorithm.py` module contains:
+- `analyze_company_position()` - Analyzes company metrics and returns insights
+- `find_similar_companies()` - Finds companies in the same industry
 
-- `ReportingService` aggregates company, profile, competitor, industry, and
-  product information into a weekly report payload.  Hook this into your email
-  scheduler to send one report per company.
-- `WatchdogService` compares a new Clay snapshot with the stored record and
-  produces a diff structure.  Extend it to trigger notifications (email, Slack,
-  etc.) when key metrics change.
+### MVP Simplifications
 
-### Next Steps / TODO
+This MVP has been simplified from the original version:
+- ✅ Removed Account/Profile separation (now single User model)
+- ✅ Removed Product tracking
+- ✅ Simplified external API integration (CompanyEnrich - simple implementation)
+- ✅ Removed complex sync utilities
+- ✅ Removed detail pages (company/profile)
+- ✅ Simplified authentication (email only, no passwords)
 
-- Expand Clay field coverage as new attributes become available.
-- Wire an async or scheduled job that runs `ClaySyncService` weekly.
-- Schedule `ReportingService.generate_all_company_reports()` to feed the email
-  pipeline.
-- Extend `WatchdogService` to inspect competitor/industry collections and
-  dispatch alerts.
-- Add Alembic migrations reflecting the new UUID schema (run `flask db migrate`
-  after pulling these changes).
+See `docs/REFACTORING_SUMMARY.md` for detailed changes.
 
-Questions? Ping the backend squad in Slack.  The service layer and routes are
-designed to stay stable while we evolve the Supabase schema and automation.
+### Next Steps
+
+After MVP validation, consider adding:
+- Product tracking
+- Industry categorization
+- External API integration (optional)
+- Detail pages
+- Advanced company analysis algorithms

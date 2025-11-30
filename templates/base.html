@@ -2,47 +2,38 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>{% block title %}Flask App{% endblock %}</title>
-    {# Serve static stylesheet for layout/flash message styling. Flask automatically serves from /static. #}
-    <link rel="stylesheet" href="/static/styles.css"> <!-- hardcoded path: /static/styles.css points to the static/styles.css file -->
+    <title>{% block title %}Startup Intelligence{% endblock %}</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <header class="site-header">
-        <a class="brand" href="{{ url_for('homepage') if current_company else url_for('login') }}">Startup Intelligence</a>
-        <nav class="site-nav" aria-label="Primary navigation">
-            {% if current_company %}
-                <a href="{{ url_for('homepage') }}#company">Company</a>
-                <a href="{{ url_for('homepage') }}#industries">Industries</a>
-                <a href="{{ url_for('homepage') }}#contacts">Contacts</a>
-                <span class="nav-context">Scope: {{ current_company.name }}</span>
-                <form class="logout-form" action="{{ url_for('logout') }}" method="POST">
+        <a class="brand" href="{{ url_for('main.homepage') if current_user else url_for('auth.login') }}">Startup Intelligence</a>
+        <nav class="site-nav">
+            {% if current_user %}
+                <span class="nav-context">Logged in as {{ current_user.first_name }} {{ current_user.last_name }}</span>
+                {% if current_company %}
+                    <span class="nav-context">Company: {{ current_company.name }}</span>
+                {% endif %}
+                <form class="logout-form" action="{{ url_for('auth.logout') }}" method="POST">
                     <button type="submit" class="logout-button">Log out</button>
                 </form>
             {% else %}
-                <a href="{{ url_for('signup') }}">Sign up</a>
-                <a href="{{ url_for('login') }}">Log in</a>
+                <a href="{{ url_for('auth.signup') }}">Sign up</a>
+                <a href="{{ url_for('auth.login') }}">Log in</a>
             {% endif %}
-            <a href="{{ url_for('health') }}">Health JSON</a>
         </nav>
     </header>
-    {# Flash message system: Flask stores messages in the session when you call flash() in routes.
-       get_flashed_messages() retrieves all pending flash messages and clears them from the session
-       (they're "one-time" messages that display once and then disappear).
-       with_categories=true means each message is returned as a tuple (category, message) instead of just the message string.
-       Categories (e.g., 'error', 'success') allow styling different message types differently. #}
+    
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {# Check if any flash messages exist before rendering the list #}
-      {% if messages %}
-        <ul class="flash-messages"> {# class hooks for styling success/error differently via CSS #}
-          {# Loop through each flashed message, unpacking the (category, message) tuple #}
-          {% for category, msg in messages %}
-            {# Display the message with the category as a CSS class for styling (e.g., class="error" or class="success") #}
-            <li class="{{ category }}">{{ msg }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, msg in messages %}
+                    <li class="{{ category }}">{{ msg }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
     {% endwith %}
-    {# Main content block: child templates (like index.html) extend this base and fill this block #}
+    
     <main class="layout">
         {% block content %}{% endblock %}
     </main>

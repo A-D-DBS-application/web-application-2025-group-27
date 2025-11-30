@@ -593,6 +593,38 @@ button {
     }
 }
 
+.meta-info {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.meta-info small {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.company-card.small {
+    padding: 1.25rem;
+}
+
+.company-card.small h3 {
+    font-size: 1rem;
+}
+
+.company-card.small .headline {
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.notes {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.85rem;
+    color: #4b5563;
+}
+
 @media (max-width: 600px) {
     .layout {
         padding: 2rem 1.25rem 3rem;
