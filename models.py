@@ -93,9 +93,17 @@ class Industry(db.Model):
 
 
 class CompanyIndustry(db.Model):
-    """Bridge table mapping companies to industries (many-to-many)."""
+    """Bridge table mapping companies to industries (many-to-many).
+    
+    Uses a composite primary key (company_id, industry_id) to allow:
+    - One company to have multiple industries
+    - One industry to have multiple companies
+    - Preventing duplicate links between the same company and industry
+    """
     __tablename__ = "company_industry"
     
+    # Composite primary key: both columns together form the unique constraint
+    # This allows a company to have multiple industries (many-to-many relationship)
     company_id = db.Column(
         UUID(as_uuid=True),
         db.ForeignKey("company.id", ondelete="CASCADE"),
