@@ -3,105 +3,107 @@
 {% block title %}{{ company_obj.name }} - Company Details{% endblock %}
 
 {% block content %}
-<header class="hero">
-    <div>
-        <a href="{{ url_for('main.homepage') }}" class="breadcrumb" style="display: inline-block; margin-bottom: 1rem; color: #cbd5f5; text-decoration: none; font-weight: 500;">← Back to Dashboard</a>
-        <h1>{{ company_obj.name }}</h1>
-        <p>{% if is_competitor %}Competitor information{% else %}Company profile{% endif %}</p>
-    </div>
-</header>
 
-<section class="section">
-    <div class="section-header">
-        <h2>Company Information</h2>
-    </div>
-    <article class="company-card">
-        <header>
-            <h3>{{ company_obj.name }}</h3>
+<div class="company-layout">
+    <div class="company-left">
+        <div class="panel">
+            <a href="{{ url_for('main.homepage') }}" class="breadcrumb" style="display: inline-block; margin-bottom: 1rem; text-decoration: none; font-weight: 500;">
+                ← Back to Dashboard
+            </a>
+            <h1 class="detail-title">{{ company_obj.name }}</h1>
+            <p class="detail-subtitle">
+                {% if is_competitor %}Competitor information{% else %}Company profile{% endif %}
+            </p>
             {% if company_obj.domain %}
-                <a class="pill" href="https://{{ company_obj.domain }}" target="_blank">{{ company_obj.domain }}</a>
+                <a class="pill domain-pill" href="https://{{ company_obj.domain }}" target="_blank">{{ company_obj.domain }}</a>
             {% endif %}
-        </header>
-        {% if company_obj.headline %}
-            <p class="headline">{{ company_obj.headline }}</p>
-        {% endif %}
-        <ul class="meta-list">
-            {% if company_obj.website %}
-                <li><strong>Website:</strong> <a href="{{ company_obj.website }}" target="_blank" rel="noopener">{{ company_obj.website }}</a></li>
-            {% endif %}
-            {% if company_obj.domain %}
-                <li><strong>Domain:</strong> {{ company_obj.domain }}</li>
-            {% endif %}
-            {% if company_obj.number_of_employees %}
-                <li><strong>Team size:</strong> {{ "{:,}".format(company_obj.number_of_employees) }} employees</li>
-            {% endif %}
-            {% if company_obj.country %}
-                <li><strong>Country:</strong> {{ company_obj.country }}</li>
-            {% endif %}
-        </ul>
-        
-        {% if company_obj.funding and company_obj.funding > 0 %}
-        <div class="stacked-block">
-            <strong>Financial Information</strong>
-            <ul class="meta-list">
-                <li><strong>Total Funding:</strong> 
-                    {% if company_obj.funding >= 1000000000 %}
-                        €{{ "%.1f"|format(company_obj.funding / 1000000000) }}B
-                    {% elif company_obj.funding >= 1000000 %}
-                        €{{ "%.1f"|format(company_obj.funding / 1000000) }}M
-                    {% elif company_obj.funding >= 1000 %}
-                        €{{ "%.1f"|format(company_obj.funding / 1000) }}K
-                    {% else %}
-                        €{{ "{:,.0f}".format(company_obj.funding) }}
-                    {% endif %}
-                </li>
-            </ul>
         </div>
-        {% endif %}
-        
-        {% if company_obj.updated_at %}
-        <div class="meta-info">
-            <small>Last updated: {{ company_obj.updated_at.strftime('%Y-%m-%d %H:%M') if company_obj.updated_at else 'Never' }}</small>
+
+        <div class="panel">
+            <h2 class="section-title">Quick Info</h2>
+            <div class="quick-info-grid">
+                {% if company_obj.website %}
+                    <div class="quick-info-item">
+                        <span class="detail-label">Website</span>
+                        <span class="detail-value">
+                            <a href="{{ company_obj.website }}" target="_blank" rel="noopener">{{ company_obj.website }}</a>
+                        </span>
+                    </div>
+                {% endif %}
+                {% if company_obj.domain %}
+                    <div class="quick-info-item">
+                        <span class="detail-label">Domain</span>
+                        <span class="detail-value">{{ company_obj.domain }}</span>
+                    </div>
+                {% endif %}
+                {% if company_obj.number_of_employees %}
+                    <div class="quick-info-item">
+                        <span class="detail-label">Team size</span>
+                        <span class="detail-value">{{ "{:,}".format(company_obj.number_of_employees) }} employees</span>
+                    </div>
+                {% endif %}
+                {% if company_obj.country %}
+                    <div class="quick-info-item">
+                        <span class="detail-label">Country</span>
+                        <span class="detail-value">{{ company_obj.country }}</span>
+                    </div>
+                {% endif %}
+                {% if company_obj.funding and company_obj.funding > 0 %}
+                    <div class="quick-info-item">
+                        <span class="detail-label">Funding</span>
+                        <span class="detail-value">
+                            {% if company_obj.funding >= 1000000000 %}
+                                €{{ "%.1f"|format(company_obj.funding / 1000000000) }}B
+                            {% elif company_obj.funding >= 1000000 %}
+                                €{{ "%.1f"|format(company_obj.funding / 1000000) }}M
+                            {% elif company_obj.funding >= 1000 %}
+                                €{{ "%.1f"|format(company_obj.funding / 1000) }}K
+                            {% else %}
+                                €{{ "{:,.0f}".format(company_obj.funding) }}
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
         </div>
-        {% endif %}
-        
-        {% if industries %}
-            <div class="stacked-block">
-                <strong>Industries</strong>
-                <ul class="pill-list">
+
+        {% if industries or company_obj.industry %}
+        <div class="panel">
+            <h2 class="section-title">Industries</h2>
+            <div class="industry-tags">
+                {% if industries %}
                     {% for industry in industries %}
-                        <li class="pill">{{ industry.name }}</li>
+                        <span class="pill">{{ industry.name }}</span>
                     {% endfor %}
-                </ul>
+                {% elif company_obj.industry %}
+                    <span class="pill">{{ company_obj.industry }}</span>
+                {% endif %}
             </div>
-        {% elif company_obj.industry %}
-            <div class="stacked-block">
-                <strong>Industry</strong>
-                <ul class="pill-list">
-                    <li class="pill">{{ company_obj.industry }}</li>
-                </ul>
-            </div>
+        </div>
         {% endif %}
-    </article>
-</section>
-
-{% if industries %}
-<section class="section">
-    <div class="section-header">
-        <h2>Industries</h2>
-        <p>Industries this company belongs to.</p>
     </div>
-    <ul class="list-table">
-        {% for industry in industries %}
-            <li>
-                <div>
-                    <strong>{{ industry.name }}</strong>
-                </div>
-            </li>
-        {% endfor %}
-    </ul>
-</section>
-{% endif %}
+
+    <div class="company-right">
+        {% if company_obj.headline %}
+        <div class="panel">
+            <h2 class="section-title">Description</h2>
+            <p class="detail-description">
+                {{ company_obj.headline }}
+            </p>
+        </div>
+        {% endif %}
+
+        <div class="panel">
+            <span class="detail-subtitle">
+                {% if company_obj.updated_at %}
+                    Last updated: {{ company_obj.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                {% else %}
+                    Last updated: Never
+                {% endif %}
+            </span>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 

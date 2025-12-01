@@ -3,18 +3,22 @@
 {% block title %}Sign In{% endblock %}
 
 {% block content %}
-<section class="auth-wrapper">
-    <article class="auth-card">
-        <h1>Sign in</h1>
-        <p class="auth-footer">Enter your email to access your workspace.</p>
-        <form method="POST" novalidate>
-            <div class="form-field">
-                <label for="email">Email</label>
-                <input id="email" class="input-control" type="email" name="email" placeholder="you@company.com" required autocomplete="email">
-            </div>
-            <button type="submit" class="primary-button">Sign in</button>
-        </form>
-        <p class="auth-footer">Don't have an account? <a href="{{ url_for('auth.signup') }}">Sign up</a>.</p>
-    </article>
-</section>
+<div class="center-container">
+    <div class="panel">
+        <section class="auth-wrapper">
+            <article class="auth-card">
+                <h1>Sign in</h1>
+                <p class="subtitle">Enter your email to access your workspace.</p>
+                <form method="POST" novalidate>
+                    <div class="form-field">
+                        <label for="email">Email</label>
+                        <input id="email" class="input-control" type="email" name="email" placeholder="you@company.com" required autocomplete="email">
+                    </div>
+                    <button type="submit" class="btn">Sign in</button>
+                </form>
+                <p class="auth-footer">Don't have an account? <a href="{{ url_for('auth.signup') }}">Sign up</a>.</p>
+            </article>
+        </section>
+    </div>
+</div>
 {% endblock %}
