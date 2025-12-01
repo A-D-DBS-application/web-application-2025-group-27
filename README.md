@@ -1,35 +1,47 @@
-## Startup Intelligence Platform – MVP Backend
+## Rival – Startup Intelligence MVP Backend
 
-Simplified Flask MVP for startup intelligence tracking. This is a minimal implementation focusing on core functionality only.
+Simplified Flask MVP for startup intelligence tracking. This implementation focuses on the core flow: sign up with a startup, enrich the company with external data, and explore basic competitor insights.
 
 ### Key Components
 
-- `app.py` – Flask application factory
-- `models.py` – Simplified ORM models (User, Company, CompanyCompetitor)
-- `routes/auth.py` – Authentication routes (login, signup, logout)
-- `routes/main.py` – Main application routes (homepage, health)
-- `services/algorithm.py` – Core algorithm for company analysis
-- `services/company_api.py` – CompanyEnrich API client for company data enrichment
-- `utils/auth.py` – Authentication utilities
+- `app.py` – Flask application factory (`create_app`) and database setup
+- `models.py` – ORM models: `User`, `Company`, `Industry`, `CompanyIndustry`, `CompanyCompetitor`
+- `routes/auth.py` – Authentication routes (login, signup, logout + company & competitor bootstrap)
+- `routes/main.py` – Main application routes (dashboard, company detail, competitor detail, health)
+- `services/company_api.py` – CompanyEnrich API client for company enrichment & competitor discovery
+- `services/competitor_filter.py` – Heuristics to clean/filter competitors from the API
+- `services/algorithm.py` – Placeholder for future analysis algorithms
+- `utils/auth.py` – Authentication/session utilities (login, current user/company, decorators)
 
 ### Database Schema (Simplified)
 
+High‑level relationships:
+
 ```
 user ──► company ──► company_competitor ──► company
+             └────► company_industry ──► industries
 ```
 
-- **User**: email, name, company_id, role
-- **Company**: name, domain, headline, basic info
-- **CompanyCompetitor**: simple competitor relationships
+- **User**: email, first/last name, company_id, role, is_active
+- **Company**: name, domain, website, headline, number_of_employees, funding, industry, country, updated_at
+- **Industry**: canonical industry names
+- **CompanyIndustry**: many‑to‑many bridge between companies and industries
+- **CompanyCompetitor**: simple competitor relationships between companies
 
 ### Running Locally
 
-1. Install dependencies:
+1. (Recommended) Use a virtual environment:
+   ```bash
+   cd Rival
+   source env/bin/activate  # or: python -m venv .venv && source .venv/bin/activate
+   ```
+
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-2. Configure environment variables:
+3. Configure environment variables:
    
    **Option A: Copy example file (recommended)**
    ```bash
@@ -48,66 +60,71 @@ user ──► company ──► company_competitor ──► company
    COMPANY_ENRICH_API_KEY=your-companyenrich-api-key-here
    ```
    
-   See `docs/API_SETUP.md` for detailed API key setup instructions.
+   See `docs/API_SETUP.md` for detailed API key setup instructions and `docs/CREDITS_CALCULATION.md` for API credit usage.
 
-3. Create/upgrade the schema:
+4. Create/upgrade the schema:
+   From the project root (`Rival/`), ensure Flask knows how to load the app factory, then run migrations:
    ```bash
-   flask db migrate -m "Initial MVP schema"
-   flask db upgrade
+   export FLASK_APP="app:create_app"  # or on Windows: set FLASK_APP=app:create_app
+   flask db upgrade                   # applies existing migrations
+   # Only run migrate when you have changed models:
+   # flask db migrate -m "Describe your schema change"
    ```
 
-4. Start the dev server:
+5. Start the dev server:
    ```bash
    python run.py
    ```
 
 ### Routes
 
-| Method | Path      | Description                    |
-|--------|-----------|--------------------------------|
-| GET    | `/health`  | Health check                   |
-| GET    | `/`        | Homepage dashboard             |
-| GET    | `/login`   | Login page                     |
-| POST   | `/login`   | Login (email-based, no password)|
-| GET    | `/signup`  | Sign up page                   |
-| POST   | `/signup`  | Create account and company     |
-| POST   | `/logout`  | Logout                         |
+Public:
+
+| Method | Path        | Description                               |
+|--------|-------------|-------------------------------------------|
+| GET    | `/login`    | Login page                                |
+| POST   | `/login`    | Login (email-based, no password)         |
+| GET    | `/signup`   | Sign up page                              |
+| POST   | `/signup`   | Create account and company                |
+
+Authenticated:
+
+| Method | Path                 | Description                               |
+|--------|----------------------|-------------------------------------------|
+| GET    | `/`                  | Homepage dashboard for current company    |
+| GET    | `/company`           | Detail page for the current company       |
+| GET    | `/competitor/<id>`   | Detail page for a competitor              |
+| POST   | `/logout`            | Logout                                    |
+| GET    | `/health`            | Health check                              |
 
 ### Authentication
 
-- **Simple email-based login** - no passwords required (MVP requirement)
-- Users are linked to companies
-- Session-based authentication
+- **Simple email-based login** – no passwords required (MVP requirement)
+- Users are linked to companies (one company per user)
+- Session-based authentication with a lightweight auth helper
 
 ### Company Data Enrichment
 
 When a user signs up with a company domain, the system automatically tries to fetch company information from [CompanyEnrich API](https://docs.companyenrich.com/docs/getting-started) if a `COMPANY_ENRICH_API_KEY` is configured.
 
-The API will populate:
-- Company domain
-- Company description/headline
-- Number of employees
-- Industry information
-- Country information
-- Funding information (if available)
+The enrichment flow:
+- **Company enrichment**: basic company data (name, domain, website, headline, employees, funding, country, industries, updated_at)
+- **Industry mapping**: industries from the API are normalized and linked via `Industry` / `CompanyIndustry`
+- **Competitors (optional but enabled)**: similar companies are fetched via the `/companies/similar` endpoint and stored in `CompanyCompetitor`
 
-**Note:** If no API key is set, signup still works but company data must be entered manually.
+See:
+- `docs/COMPANY_ENRICH_DATA_ANALYSIS.md` – detailed mapping of API → database
+- `docs/CREDITS_CALCULATION.md` – credit usage and cost breakdown
+- `docs/API_CALL_OPTIMIZATION.md` – when calls are skipped to save credits
+
+**Note:**  
+- If no API key is set, signup still works, but company data must be entered manually and no competitors are fetched.  
+- API calls are only made when needed (new company or stale/missing data) to reduce credit usage.
 
 ### Core Algorithm
 
-The `services/algorithm.py` module is reserved for future algorithm implementations.
-
-### MVP Simplifications
-
-This MVP has been simplified from the original version:
-- ✅ Removed Account/Profile separation (now single User model)
-- ✅ Removed Product tracking
-- ✅ Simplified external API integration (CompanyEnrich - simple implementation)
-- ✅ Removed complex sync utilities
-- ✅ Removed detail pages (company/profile)
-- ✅ Simplified authentication (email only, no passwords)
-
-See `docs/REFACTORING_SUMMARY.md` for detailed changes.
+The `services/algorithm.py` module is reserved for future algorithm implementations.  
+For now, the “algorithm” is mainly the CompanyEnrich-based enrichment and competitor discovery logic plus basic dashboard metrics (team size, competitors, industries, funding).
 
 ### Next Steps
 
