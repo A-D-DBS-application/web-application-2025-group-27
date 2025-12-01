@@ -3,23 +3,28 @@
 <head>
     <meta charset="utf-8">
     <title>{% block title %}Startup Intelligence{% endblock %}</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    <nav class="navbar">
+        <span class="navbar-title">Rival Dashboard</span>
+        <div class="top-right">
+            {% if current_user %}
+                <span class="top-pill">Logged in as {{ current_user.first_name }}</span>
+                <form class="logout-form" action="{{ url_for('auth.logout') }}" method="POST">
+                    <button type="submit" class="btn btn-small">Log out</button>
+                </form>
+            {% else %}
+                <span class="top-pill"><a href="{{ url_for('auth.signup') }}">Sign up</a></span>
+                <span class="top-pill"><a href="{{ url_for('auth.login') }}">Log in</a></span>
+            {% endif %}
+        </div>
+    </nav>
     <header class="site-header">
         <a class="brand" href="{{ url_for('main.homepage') if current_user else url_for('auth.login') }}">Startup Intelligence</a>
         <nav class="site-nav">
-            {% if current_user %}
-                <span class="nav-context">Logged in as {{ current_user.first_name }} {{ current_user.last_name }}</span>
-                {% if current_company %}
-                    <span class="nav-context">Company: {{ current_company.name }}</span>
-                {% endif %}
-                <form class="logout-form" action="{{ url_for('auth.logout') }}" method="POST">
-                    <button type="submit" class="logout-button">Log out</button>
-                </form>
-            {% else %}
-                <a href="{{ url_for('auth.signup') }}">Sign up</a>
-                <a href="{{ url_for('auth.login') }}">Log in</a>
+            {% if current_user and current_company %}
+                <span class="nav-context">Company: {{ current_company.name }}</span>
             {% endif %}
         </nav>
     </header>
@@ -35,7 +40,9 @@
     {% endwith %}
     
     <main class="layout">
-        {% block content %}{% endblock %}
+        <div class="content-wrapper">
+            {% block content %}{% endblock %}
+        </div>
     </main>
 </body>
 </html>
