@@ -2,6 +2,9 @@
 
 Simplified Flask MVP for startup intelligence tracking. This implementation focuses on the core flow: sign up with a startup, enrich the company with external data, and explore basic competitor insights.
 
+**Team planning board (Miro)**:  
+`https://miro.com/app/board/uXjVJwMn8m4=/`
+
 ### Key Components
 
 - `app.py` – Flask application factory (`create_app`) and database setup
