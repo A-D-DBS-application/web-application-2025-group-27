@@ -1,249 +1,260 @@
-## Rival – Startup Intelligence MVP Backend
+# Rival — Competitive Intelligence & Market Insights Platform
 
-Simplified Flask MVP for startup intelligence tracking. This implementation focuses on the core flow: sign up with a startup, enrich the company with external data, and explore basic competitor insights.
+A Flask-based competitive intelligence platform that automatically enriches company data, discovers competitors, and generates AI-powered market insights using OpenAI GPT-4o-mini.
 
-**Team planning board (Miro)**:  
-`https://miro.com/app/board/uXjVJwMn8m4=/`
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![Flask](https://img.shields.io/badge/Flask-3.x-green.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-### Key Components
+---
 
-- `app.py` – Flask application factory (`create_app`) and database setup
-- `models.py` – ORM models: `User`, `Company`, `Industry`, `CompanyIndustry`, `CompanyCompetitor`
-- `routes/auth.py` – Authentication routes (login, signup, logout + company & competitor bootstrap)
-- `routes/main.py` – Main application routes (dashboard, company detail, competitor detail, health)
-- `services/company_api.py` – CompanyEnrich API client for company enrichment & competitor discovery
-- `services/competitor_filter.py` – Heuristics to clean/filter competitors from the API
-- `services/competitive_landscape.py` – AI-powered competitive landscape analysis using OpenAI
-- `utils/auth.py` – Authentication/session utilities (login, current user/company, decorators)
-- `utils/company_helpers.py` – Helper functions for company enrichment and landscape generation
+## 📸 Screenshots
 
-### Database Schema
+<!-- Add screenshots here -->
+| Dashboard | Market Positioning | Hiring Intelligence |
+|-----------|-------------------|---------------------|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Market](docs/screenshots/market-positioning.png) | ![Hiring](docs/screenshots/hiring-intelligence.png) |
 
-#### Entity Relationship Diagram
+---
+
+## ✨ Key Features
+
+### Company Intelligence
+- **Automatic Company Enrichment** — Fetches company data (employees, funding, industries, country) from CompanyEnrich API
+- **Competitor Discovery** — Automatically identifies and tracks similar companies
+- **Industry Classification** — Multi-industry tagging with normalized industry database
+
+### AI-Powered Analysis
+- **Competitive Landscape** — AI-generated market positioning summaries
+- **Market Positioning** — Structured strategic analysis (value proposition, competitive edge, weaknesses)
+- **Hiring Intelligence** — AI-inferred hiring focus, department signals, and strategic interpretation
+- **Signals & Alerts** — Automated detection of organizational and competitive changes
+
+### Change Detection
+- **Snapshot System** — Historical company data snapshots for change tracking
+- **Diff Engine** — Compares snapshots to detect meaningful changes
+- **Smart Alerts** — AI-generated signals for headcount changes, industry shifts, funding updates
+
+---
+
+## 🛠 Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Python 3.10+, Flask 3.x, SQLAlchemy 2.x |
+| **Database** | PostgreSQL (via Supabase) |
+| **AI** | OpenAI GPT-4o-mini |
+| **Frontend** | Jinja2, Tailwind CSS (JIT), Lucide Icons |
+| **APIs** | CompanyEnrich API, OpenAI API |
+
+---
+
+## 🏗 Architecture
 
 ```
-┌─────────────┐
-│    User     │
-├─────────────┤
-│ id (PK)     │
-│ email       │──┐
-│ first_name  │  │
-│ last_name   │  │
-│ company_id  │──┼──┐
-│ role        │  │  │
-│ is_active   │  │  │
-└─────────────┘  │  │
-                 │  │
-                 │  │
-┌────────────────┴──┴──┐
-│      Company         │
-├──────────────────────┤
-│ id (PK)              │
-│ name                 │
-│ domain               │
-│ website              │
-│ headline             │
-│ number_of_employees  │
-│ funding              │
-│ industry (legacy)    │
-│ country              │
-│ updated_at           │
-│ competitive_landscape│
-└──────────────────────┘
-         │
-         ├──────────────────┐
-         │                  │
-         ▼                  ▼
-┌──────────────────┐  ┌──────────────────────┐
-│ CompanyIndustry  │  │ CompanyCompetitor    │
-├──────────────────┤  ├──────────────────────┤
-│ company_id (PK)  │  │ company_id (PK)      │
-│ industry_id (PK) │  │ competitor_id (PK)   │
-└──────────────────┘  └──────────────────────┘
-         │                        │
-         ▼                        ▼
-┌─────────────┐          ┌─────────────┐
-│  Industry   │          │  Company    │
-├─────────────┤          │ (competitor)│
-│ id (PK)     │          │             │
-│ name        │          └─────────────┘
-│ description │
-└─────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         Browser (UI)                            │
+│                    Tailwind CSS + Lucide Icons                  │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Flask Application                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │ routes/      │  │ templates/   │  │ static/              │  │
+│  │  auth.py     │  │  base.html   │  │  styles.css          │  │
+│  │  main.py     │  │  index.html  │  │  css/                │  │
+│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        Services Layer                           │
+│  ┌────────────────┐  ┌────────────────┐  ┌─────────────────┐   │
+│  │ company_api.py │  │ signals.py     │  │ market_         │   │
+│  │ (CompanyEnrich)│  │ (Snapshots,    │  │ positioning.py  │   │
+│  │                │  │  Diffs, Alerts)│  │ (AI Analysis)   │   │
+│  └────────────────┘  └────────────────┘  └─────────────────┘   │
+│  ┌────────────────┐  ┌────────────────┐                        │
+│  │ competitive_   │  │ competitor_    │                        │
+│  │ landscape.py   │  │ filter.py      │                        │
+│  └────────────────┘  └────────────────┘                        │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                ┌───────────────┴───────────────┐
+                ▼                               ▼
+┌───────────────────────┐         ┌───────────────────────┐
+│   PostgreSQL (Supabase)│         │      OpenAI API       │
+│   ┌─────────────────┐ │         │   (GPT-4o-mini)       │
+│   │ company         │ │         │                       │
+│   │ user            │ │         │  • Competitive        │
+│   │ industries      │ │         │    Landscape          │
+│   │ company_industry│ │         │  • Market Positioning │
+│   │ company_competitor│         │  • Hiring Intelligence│
+│   │ company_snapshot│ │         │  • Signal Generation  │
+│   │ company_signal  │ │         │                       │
+│   │ market_positioning│         └───────────────────────┘
+│   └─────────────────┘ │
+└───────────────────────┘
 ```
 
-#### Table Definitions
+---
 
-**`user`**
-- `id` (UUID, PK) - Unique user identifier
-- `email` (VARCHAR(255), UNIQUE, INDEX) - User email address
-- `first_name` (VARCHAR(255)) - User's first name
-- `last_name` (VARCHAR(255)) - User's last name
-- `company_id` (UUID, FK → `company.id`) - Reference to user's company
-- `role` (VARCHAR(255)) - User's role (optional)
-- `is_active` (BOOLEAN, DEFAULT true) - Whether the user account is active
+## 📦 Installation
 
-**`company`**
-- `id` (UUID, PK) - Unique company identifier
-- `name` (VARCHAR(255), UNIQUE) - Company name
-- `domain` (VARCHAR(255), INDEX) - Company domain (e.g., "nike.com")
-- `website` (VARCHAR(500)) - Full website URL
-- `headline` (TEXT) - Company description/headline
-- `number_of_employees` (INTEGER) - Employee count
-- `funding` (BIGINT) - Total funding amount in cents
-- `industry` (VARCHAR(255)) - Legacy single industry field (kept for compatibility)
-- `country` (VARCHAR(255)) - Company country
-- `updated_at` (DATETIME) - Last update timestamp from API
-- `competitive_landscape` (TEXT) - AI-generated competitive landscape summary
+### Prerequisites
+- Python 3.10+
+- PostgreSQL database (or Supabase account)
+- OpenAI API key (optional, for AI features)
+- CompanyEnrich API key (optional, for company enrichment)
 
-**`industries`**
-- `id` (UUID, PK) - Unique industry identifier
-- `name` (VARCHAR(255), UNIQUE) - Canonical industry name
-- `description` (TEXT) - Industry description (optional)
+### Setup
 
-**`company_industry`** (Many-to-Many Bridge)
-- `company_id` (UUID, PK, FK → `company.id`, CASCADE DELETE)
-- `industry_id` (UUID, PK, FK → `industries.id`, CASCADE DELETE)
-- Composite primary key ensures one company can have multiple industries
-
-**`company_competitor`** (Competitor Relationships)
-- `company_id` (UUID, PK, FK → `company.id`, CASCADE DELETE)
-- `competitor_id` (UUID, PK, FK → `company.id`, CASCADE DELETE)
-- Composite primary key links companies as competitors
-- Both IDs reference the `company` table (self-referential relationship)
-
-### Running Locally
-
-1. (Recommended) Use a virtual environment:
+1. **Clone the repository**
    ```bash
-   cd Rival
-   source env/bin/activate  # or: python -m venv .venv && source .venv/bin/activate
+   git clone https://github.com/your-username/rival.git
+   cd rival
    ```
 
-2. Install dependencies:
+2. **Create virtual environment**
+   ```bash
+   python -m venv env
+   source env/bin/activate  # On Windows: env\Scripts\activate
+   ```
+
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Configure environment variables:
-   
-   **Option A: Copy example file (recommended)**
+4. **Configure environment**
    ```bash
    cp .env.example .env
-   # Then edit .env and add your values
-   ```
-   
-   **Option B: Create .env manually**
-   ```bash
-   # Create .env file with:
-   SECRET_KEY=your-secret-key-here
-   DATABASE_URL=postgresql://user:password@host:port/database
-   
-   # Optional: CompanyEnrich API (for automatic company data enrichment)
-   # Get your API key from https://app.companyenrich.com/
-   COMPANY_ENRICH_API_KEY=your-companyenrich-api-key-here
-   
-   # Optional: OpenAI API (for AI-powered competitive landscape analysis)
-   # Get your API key from https://platform.openai.com/api-keys
-   OPENAI_API_KEY=your-openai-api-key-here
-   ```
-   
-   See `docs/API_SETUP.md` for detailed API key setup instructions and `docs/CREDITS_CALCULATION.md` for API credit usage.
-
-4. Create/upgrade the schema:
-   From the project root (`Rival/`), ensure Flask knows how to load the app factory, then run migrations:
-   ```bash
-   export FLASK_APP="app:create_app"  # or on Windows: set FLASK_APP=app:create_app
-   flask db upgrade                   # applies existing migrations
-   # Only run migrate when you have changed models:
-   # flask db migrate -m "Describe your schema change"
+   # Edit .env with your actual values
    ```
 
-5. Start the dev server:
+5. **Run database migrations**
+   ```bash
+   export FLASK_APP="app:create_app"
+   flask db upgrade
+   ```
+
+6. **Start the server**
    ```bash
    python run.py
    ```
 
-### Routes
+   The app will be available at `http://localhost:5000`
 
-Public:
+---
 
-| Method | Path        | Description                               |
-|--------|-------------|-------------------------------------------|
-| GET    | `/login`    | Login page                                |
-| POST   | `/login`    | Login (email-based, no password)         |
-| GET    | `/signup`   | Sign up page                              |
-| POST   | `/signup`   | Create account and company                |
+## ⚙️ Environment Variables
 
-Authenticated:
+Create a `.env` file in the project root:
 
-| Method | Path                 | Description                               |
-|--------|----------------------|-------------------------------------------|
-| GET    | `/`                  | Homepage dashboard for current company    |
-| GET    | `/company`           | Detail page for the current company       |
-| GET    | `/competitor/<id>`   | Detail page for a competitor              |
-| POST   | `/logout`            | Logout                                    |
-| GET    | `/health`            | Health check                              |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | Yes | Flask secret key for sessions |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `OPENAI_API_KEY` | No | OpenAI API key for AI features |
+| `COMPANY_ENRICH_API_KEY` | No | CompanyEnrich API key for company data |
+| `FLASK_ENV` | No | `development` or `production` |
 
-### Authentication
+See `.env.example` for a template.
 
-- **Simple email-based login** – no passwords required (MVP requirement)
-- Users are linked to companies (one company per user)
-- Session-based authentication with a lightweight auth helper
+---
 
-### Company Data Enrichment
+## 📁 Project Structure
 
-When a user signs up with a company domain, the system automatically tries to fetch company information from [CompanyEnrich API](https://docs.companyenrich.com/docs/getting-started) if a `COMPANY_ENRICH_API_KEY` is configured.
-
-The enrichment flow:
-- **Company enrichment**: basic company data (name, domain, website, headline, employees, funding, country, industries, updated_at)
-- **Industry mapping**: industries from the API are normalized and linked via `Industry` / `CompanyIndustry`
-- **Competitors (optional but enabled)**: similar companies are fetched via the `/companies/similar` endpoint and stored in `CompanyCompetitor`
-
-See:
-- `docs/COMPANY_ENRICH_DATA_ANALYSIS.md` – detailed mapping of API → database
-- `docs/CREDITS_CALCULATION.md` – credit usage and cost breakdown
-- `docs/API_CALL_OPTIMIZATION.md` – when calls are skipped to save credits
-
-**Note:**  
-- If no API key is set, signup still works, but company data must be entered manually and no competitors are fetched.  
-- API calls are only made when needed (new company or stale/missing data) to reduce credit usage.
-
-### AI-Powered Competitive Landscape Analysis
-
-The system automatically generates competitive landscape summaries for companies. This feature uses OpenAI's GPT-4o-mini model when an `OPENAI_API_KEY` is configured, or falls back to a default placeholder text when the API is unavailable.
-
-**How it works:**
-- When viewing a company detail page (`/company` or `/competitor/<id>`), the system checks if a competitive landscape summary exists
-- If not, it automatically generates a 5-7 sentence analytical summary based on:
-  - Company description/headline
-  - Industry classifications
-  - Known competitors
-- The generated landscape covers:
-  - Market position and competitive pressures
-  - Differentiation factors
-  - Strategic considerations and risks
-- The summary is cached in the `competitive_landscape` field to avoid repeated API calls
-
-**API Configuration:**
-- **With OpenAI API key**: Generates AI-powered landscape summaries using GPT-4o-mini
-- **Without API key**: Uses a default placeholder text explaining that landscape analysis is being prepared
-- **No competitors**: Uses default text when no competitors are available for analysis
-
-**Testing:**
-Use the `tools/generate_landscape.py` script to test landscape generation with full logging:
-```bash
-python tools/generate_landscape.py "Company Name"
+```
+rival/
+├── app.py                 # Flask application factory
+├── config.py              # Configuration settings
+├── models.py              # SQLAlchemy ORM models
+├── run.py                 # Development server entry point
+├── requirements.txt       # Python dependencies
+│
+├── routes/                # Flask blueprints
+│   ├── auth.py            # Authentication (login, signup, logout)
+│   └── main.py            # Main routes (dashboard, company, competitor)
+│
+├── services/              # Business logic
+│   ├── company_api.py     # CompanyEnrich API client
+│   ├── competitive_landscape.py  # AI landscape generation
+│   ├── competitor_filter.py      # Competitor filtering heuristics
+│   ├── market_positioning.py     # AI market positioning
+│   └── signals.py         # Snapshots, diffs, and alert generation
+│
+├── utils/                 # Utility functions
+│   ├── auth.py            # Authentication helpers
+│   └── company_helpers.py # Company data helpers
+│
+├── templates/             # Jinja2 templates
+│   ├── base.html          # Base layout
+│   ├── index.html         # Dashboard
+│   ├── company_detail.html
+│   ├── login.html
+│   ├── signup.html
+│   └── ...
+│
+├── static/                # Static assets
+│   ├── styles.css         # Custom CSS
+│   └── css/               # Additional stylesheets
+│
+└── migrations/            # Alembic database migrations
 ```
 
-### Core Algorithm
+---
 
-The core "algorithm" is the CompanyEnrich-based enrichment and competitor discovery logic plus basic dashboard metrics (team size, competitors, industries, funding), combined with AI-powered competitive landscape analysis.
+## 🔒 Security & Privacy
 
-### Next Steps
+- **Never commit `.env` files** — Contains sensitive API keys
+- **Database credentials** — Store only in environment variables
+- **API keys** — Use `.env.example` as a template (no real values)
+- **Session security** — Flask's secure session handling
 
-After MVP validation, consider adding:
-- Product tracking
-- Industry categorization
-- Advanced company analysis algorithms
-- Enhanced competitive intelligence features
-- Real-time market monitoring
+---
+
+## 🚀 API Routes
+
+### Public Routes
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Landing page (guests) / Dashboard (logged in) |
+| GET | `/login` | Login page |
+| POST | `/login` | Authenticate user |
+| GET | `/signup` | Registration page |
+| POST | `/signup` | Create account + company |
+| GET | `/about` | About page |
+
+### Authenticated Routes
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/company` | Company detail page |
+| GET | `/competitor/<id>` | Competitor detail page |
+| GET | `/market-positioning` | Market positioning analysis |
+| POST | `/refresh-analysis` | Refresh hiring intelligence |
+| POST | `/logout` | Log out |
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👥 Team
+
+Built by the Rival team
+

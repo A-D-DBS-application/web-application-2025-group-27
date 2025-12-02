@@ -216,19 +216,37 @@ __marimo__/
 .streamlit/secrets.toml
 
 
-# Own
+# Project-specific
 
-web-application-2025-group-27.code-workspace
+# macOS
 .DS_Store
-TODO.md
-docs/
-migrations/
-tools/
+*.DS_Store
+
+# IDE / Editor
+.idea/
+*.iml
+.cursor/
+.cursorrules
+web-application-2025-group-27.code-workspace
+
+# Secrets (NEVER commit these)
+*secrets.json
+*.pem
+*.key
+
+# Database
+*.sqlite
+*.sqlite3
+database.db
 
 # Backup files
 backups/
 backup_*.json
 
-# Cursor rules
-.cursor/
-.cursorrules
+# Development folders (not for public repo)
+docs/
+migrations/
+tools/
+
+# Generated markdown exports
+tools/md/
