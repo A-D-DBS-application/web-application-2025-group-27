@@ -68,7 +68,7 @@ def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
                 updated_at = None
                 if updated_at_str:
                     try:
-                            updated_at = datetime.fromisoformat(updated_at_str.replace('Z', '+00:00'))
+                        updated_at = datetime.fromisoformat(updated_at_str.replace('Z', '+00:00'))
                     except (ValueError, AttributeError):
                         pass
                 
