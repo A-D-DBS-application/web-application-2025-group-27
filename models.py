@@ -1,6 +1,7 @@
 """Simplified database models for MVP."""
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -67,6 +68,24 @@ class Company(db.Model):
         back_populates="company",
         cascade="all, delete-orphan",
     )
+    market_positioning = db.relationship(
+        "MarketPositioning",
+        back_populates="company",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    snapshots = db.relationship(
+        "CompanySnapshot",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="CompanySnapshot.created_at.desc()",
+    )
+    signals = db.relationship(
+        "CompanySignal",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="CompanySignal.created_at.desc()",
+    )
     
     def __repr__(self) -> str:
         return f"<Company id={self.id} name={self.name!r}>"
@@ -125,6 +144,62 @@ class CompanyIndustry(db.Model):
     
     def __repr__(self) -> str:
         return f"<CompanyIndustry company_id={self.company_id} industry_id={self.industry_id}>"
+
+
+class MarketPositioning(db.Model):
+    """AI-generated market positioning insights for a company."""
+    __tablename__ = "market_positioning"
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    company_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), unique=True, nullable=False)
+    
+    value_proposition = db.Column(db.Text)
+    competitive_edge = db.Column(db.Text)
+    brand_perception = db.Column(db.Text)
+    key_segments = db.Column(db.Text)
+    weaknesses = db.Column(db.Text)
+    opportunity_areas = db.Column(db.Text)
+    summary = db.Column(db.Text)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    company = db.relationship("Company", back_populates="market_positioning")
+    
+    def __repr__(self) -> str:
+        return f"<MarketPositioning company_id={self.company_id}>"
+
+
+class CompanySnapshot(db.Model):
+    """Snapshot of company data for change detection."""
+    __tablename__ = "company_snapshot"
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    company_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=False)
+    data = db.Column(db.Text, nullable=False)  # JSON snapshot
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    company = db.relationship("Company", back_populates="snapshots")
+    
+    def __repr__(self) -> str:
+        return f"<CompanySnapshot company_id={self.company_id} created_at={self.created_at}>"
+
+
+class CompanySignal(db.Model):
+    """AI-generated signals/alerts for company changes."""
+    __tablename__ = "company_signal"
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    company_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=False)
+    signal_type = db.Column(db.String(64))  # headcount_change, industry_shift, etc.
+    severity = db.Column(db.String(16))  # low, medium, high
+    message = db.Column(db.Text)  # Short UI-ready message
+    details = db.Column(db.Text)  # Longer explanation
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    company = db.relationship("Company", back_populates="signals")
+    
+    def __repr__(self) -> str:
+        return f"<CompanySignal company_id={self.company_id} type={self.signal_type}>"
 
 
 class CompanyCompetitor(db.Model):

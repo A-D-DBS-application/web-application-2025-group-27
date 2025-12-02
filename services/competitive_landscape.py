@@ -1,11 +1,15 @@
+"""Competitive landscape AI service - generates market context summaries."""
+
 import os
 from typing import List, Optional
+
 from models import Company
 
 _client = None
 
 
 def _get_openai_client():
+    """Get OpenAI client (cached singleton)."""
     global _client
     if _client is None:
         api_key = os.getenv("OPENAI_API_KEY")
@@ -21,11 +25,14 @@ def _get_openai_client():
 
 
 def generate_competitive_landscape(company: Company, competitors: List[Company]) -> Optional[str]:
+    """Generate a competitive landscape summary for a company."""
     client = _get_openai_client()
-    if not client or not company or not competitors: return None
+    if not client or not company or not competitors:
+        return None
     
-    competitor_names = [c.name for c in competitors if c and c.name]
+    # Gather context
     from utils.company_helpers import get_company_industries
+    competitor_names = [c.name for c in competitors if c and c.name]
     industries = [ind.name for ind in get_company_industries(company) if ind and ind.name]
     
     prompt = f"""Generate a short, factual competitive landscape summary for the company '{company.name}'.
