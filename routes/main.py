@@ -83,7 +83,7 @@ def about():
     founders = [
         {"name": "Leo He", "role": "Co-founder", "image": url_for('static', filename='images/founders/6254D7A5-E3E1-4782-B39C-63BDC5D53FD4_1_105_c.jpeg')},
         {"name": "Nathan Denys", "role": "Co-founder", "image": url_for('static', filename='images/founders/nathan-denys.jpg')},
-        {"name": "Jean Knecht", "role": "Co-founder", "image": url_for('static', filename='images/founders/jean-knecht.jpg')},
+        {"name": "Jean Knecht", "role": "Co-founder", "image": url_for('static', filename='images/founders/IMG_2696.JPG')},
         {"name": "Niels Herreman", "role": "Co-founder", "image": url_for('static', filename='images/founders/niels-herreman.jpg')},
         {"name": "Mattis Malfait", "role": "Co-founder", "image": url_for('static', filename='images/founders/mattis-malfait.jpg')},
         {"name": "Jeroen Vroman", "role": "Co-founder", "image": url_for('static', filename='images/founders/jeroen-vroman.jpg')},
