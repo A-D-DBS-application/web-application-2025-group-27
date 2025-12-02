@@ -228,3 +228,7 @@ tools/
 # Backup files
 backups/
 backup_*.json
+
+# Cursor rules
+.cursor/
+.cursorrules
