@@ -12,14 +12,31 @@
         <button onclick="showTab('competitors')" id="tab-competitors" class="tab-button pb-3 px-1 text-sm font-medium text-slate-500 border-b-2 border-transparent hover:text-slate-700">
             Competitors
         </button>
-        <button onclick="showTab('positioning')" id="tab-positioning" class="tab-button pb-3 px-1 text-sm font-medium text-slate-500 border-b-2 border-transparent hover:text-slate-700">
-            Market Positioning
-        </button>
         <button onclick="showTab('signals')" id="tab-signals" class="tab-button pb-3 px-1 text-sm font-medium text-slate-500 border-b-2 border-transparent hover:text-slate-700">
             Signals
         </button>
     </nav>
 </div>
+
+<!-- New Signals Banner -->
+{% if unread_count and unread_count > 0 %}
+<div class="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+            <i data-lucide="bell" class="w-5 h-5 text-blue-600"></i>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-blue-900">
+                Hey {{ current_user.first_name }}, you have <span class="font-bold">{{ unread_count }}</span> new signal{{ 's' if unread_count != 1 else '' }}!
+            </p>
+            <p class="text-xs text-blue-700">Your competitors have changes worth checking out.</p>
+        </div>
+    </div>
+    <button onclick="showTab('signals')" class="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors duration-200">
+        View Signals
+    </button>
+</div>
+{% endif %}
 
 <!-- Tab Content -->
 <div id="content-overview" class="tab-content">
@@ -308,336 +325,48 @@
 {% endif %}
 </div>
 
-<!-- Market Positioning Tab Content -->
-<div id="content-positioning" class="tab-content hidden">
-{% if company and mp %}
-<div class="mb-8">
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <section>
-            <div class="mb-6">
-                <h2 class="font-display text-xl font-semibold text-slate-900 mb-1">Market Positioning</h2>
-                <p class="text-sm text-slate-600">Strategic analysis for {{ company.name }}</p>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Value Proposition -->
-                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                            <i data-lucide="target" class="w-5 h-5 text-primary-600"></i>
-                        </div>
-                        <h3 class="font-display text-lg font-semibold text-slate-900">Value Proposition</h3>
-                    </div>
-                    <p class="text-slate-600 text-sm leading-relaxed">{{ mp.value_proposition }}</p>
-                </div>
-
-                <!-- Competitive Edge -->
-                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                            <i data-lucide="trophy" class="w-5 h-5 text-primary-600"></i>
-                        </div>
-                        <h3 class="font-display text-lg font-semibold text-slate-900">Competitive Edge</h3>
-                    </div>
-                    <p class="text-slate-600 text-sm leading-relaxed">{{ mp.competitive_edge }}</p>
-                </div>
-
-                <!-- Brand Perception -->
-                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                            <i data-lucide="heart" class="w-5 h-5 text-primary-600"></i>
-                        </div>
-                        <h3 class="font-display text-lg font-semibold text-slate-900">Brand Perception</h3>
-                    </div>
-                    <p class="text-slate-600 text-sm leading-relaxed">{{ mp.brand_perception }}</p>
-                </div>
-
-                <!-- Key Segments -->
-                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                            <i data-lucide="users" class="w-5 h-5 text-primary-600"></i>
-                        </div>
-                        <h3 class="font-display text-lg font-semibold text-slate-900">Key Segments</h3>
-                    </div>
-                    <p class="text-slate-600 text-sm leading-relaxed">{{ mp.key_segments }}</p>
-                </div>
-
-                <!-- Weaknesses -->
-                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                            <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600"></i>
-                        </div>
-                        <h3 class="font-display text-lg font-semibold text-slate-900">Weaknesses</h3>
-                    </div>
-                    <p class="text-slate-600 text-sm leading-relaxed">{{ mp.weaknesses }}</p>
-                </div>
-
-                <!-- Opportunity Areas -->
-                <div class="bg-slate-50 rounded-lg p-6 border border-slate-200">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                            <i data-lucide="lightbulb" class="w-5 h-5 text-primary-600"></i>
-                        </div>
-                        <h3 class="font-display text-lg font-semibold text-slate-900">Opportunity Areas</h3>
-                    </div>
-                    <p class="text-slate-600 text-sm leading-relaxed">{{ mp.opportunity_areas }}</p>
-                </div>
-            </div>
-
-            <!-- Summary -->
-            <div class="mt-6 bg-primary-600 rounded-lg p-6">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                        <i data-lucide="file-text" class="w-5 h-5 text-white"></i>
-                    </div>
-                    <h3 class="font-display text-lg font-semibold text-white">Summary</h3>
-                </div>
-                <p class="text-white/90 text-sm leading-relaxed">{{ mp.summary }}</p>
-            </div>
-
-            {% if mp.created_at %}
-            <div class="mt-6 pt-6 border-t border-slate-200">
-                <p class="text-sm text-slate-500">
-                    Generated on {{ mp.created_at.strftime('%B %d, %Y at %H:%M') }}
-                </p>
-            </div>
-            {% endif %}
-        </section>
-    </div>
-</div>
-{% else %}
-<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
-    <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-        <i data-lucide="alert-circle" class="w-8 h-8 text-slate-400"></i>
-    </div>
-    <h2 class="font-display text-xl font-semibold text-slate-900 mb-2">Analysis Unavailable</h2>
-    <p class="text-slate-600">Market positioning analysis could not be generated at this time.</p>
-</div>
-{% endif %}
-</div>
-
 <!-- Signals Tab Content -->
 <div id="content-signals" class="tab-content hidden">
 {% if company %}
 
-<!-- Hiring Intelligence Section -->
-<div class="mb-6">
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h2 class="font-display text-lg font-semibold text-slate-900">Hiring Intelligence</h2>
-                <p class="text-sm text-slate-600">AI-powered workforce analysis based on company profile and competitive context.</p>
-            </div>
-            <form action="{{ url_for('main.refresh_analysis') }}" method="POST">
-                <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors duration-200">
-                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                    Update Analysis
-                </button>
-            </form>
-        </div>
-        
-        {% if hiring_intel %}
-        <!-- Hiring Summary -->
-        {% if hiring_intel.hiring_summary and hiring_intel.hiring_summary != "Hiring analysis not available." %}
-        <div class="mb-6 bg-gradient-to-r from-primary-50 to-slate-50 rounded-lg p-4 border border-primary-100">
-            <p class="text-sm text-slate-700 leading-relaxed">{{ hiring_intel.hiring_summary }}</p>
-        </div>
-        {% endif %}
-        
-        <!-- Current Focus Scores -->
-        <div class="mb-6">
-            <h3 class="text-sm font-semibold text-slate-700 mb-3">Current Hiring Focus</h3>
-            <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2">
-                {% for role, score in hiring_intel.current_focus.items() %}
-                <div class="bg-slate-50 rounded-lg p-2.5 text-center border border-slate-200">
-                    <div class="text-xl font-bold mb-0.5
-                        {% if score >= 4 %}text-emerald-600
-                        {% elif score >= 2 %}text-amber-600
-                        {% else %}text-slate-400{% endif %}">
-                        {{ score }}
-                    </div>
-                    <div class="text-xs text-slate-600 capitalize truncate" title="{{ role|replace('_', ' ') }}">{{ role|replace('_', ' ') }}</div>
-                    <div class="mt-1 h-1 bg-slate-200 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full
-                            {% if score >= 4 %}bg-emerald-500
-                            {% elif score >= 2 %}bg-amber-500
-                            {% else %}bg-slate-300{% endif %}"
-                            style="width: {{ (score / 5 * 100)|int }}%"></div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        
-        <!-- Department Signals -->
-        {% if hiring_intel.department_signals %}
-        <div class="mb-6">
-            <h3 class="text-sm font-semibold text-slate-700 mb-3">Department Signals</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Growing Departments -->
-                {% if hiring_intel.department_signals.growing_departments %}
-                <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i>
-                        <span class="text-sm font-medium text-emerald-800">Growing Departments</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5">
-                        {% for dept in hiring_intel.department_signals.growing_departments %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">{{ dept }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                
-                <!-- Shrinking Departments -->
-                {% if hiring_intel.department_signals.shrinking_departments %}
-                <div class="bg-red-50 rounded-lg p-4 border border-red-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i data-lucide="trending-down" class="w-4 h-4 text-red-600"></i>
-                        <span class="text-sm font-medium text-red-800">Shrinking Departments</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5">
-                        {% for dept in hiring_intel.department_signals.shrinking_departments %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">{{ dept }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                
-                <!-- Emerging Skills -->
-                {% if hiring_intel.department_signals.emerging_skills %}
-                <div class="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i data-lucide="sparkles" class="w-4 h-4 text-blue-600"></i>
-                        <span class="text-sm font-medium text-blue-800">Emerging Skills</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5">
-                        {% for skill in hiring_intel.department_signals.emerging_skills %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">{{ skill }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                
-                <!-- Strategic Role Clusters -->
-                {% if hiring_intel.department_signals.strategic_role_clusters %}
-                <div class="bg-purple-50 rounded-lg p-4 border border-purple-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i data-lucide="layers" class="w-4 h-4 text-purple-600"></i>
-                        <span class="text-sm font-medium text-purple-800">Strategic Role Clusters</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5">
-                        {% for cluster in hiring_intel.department_signals.strategic_role_clusters %}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">{{ cluster }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-        
-        <!-- Strategic Interpretation -->
-        {% if hiring_intel.strategic_interpretation %}
-        <div class="mb-2">
-            <h3 class="text-sm font-semibold text-slate-700 mb-3">Strategic Interpretation</h3>
-            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <!-- Growth Stage -->
-                {% if hiring_intel.strategic_interpretation.growth_stage and hiring_intel.strategic_interpretation.growth_stage != "Unknown" %}
-                <div class="mb-4">
-                    <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Growth Stage</span>
-                    <p class="text-sm font-semibold text-slate-800 mt-0.5">{{ hiring_intel.strategic_interpretation.growth_stage }}</p>
-                </div>
-                {% endif %}
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- Hiring Priorities -->
-                    {% if hiring_intel.strategic_interpretation.likely_hiring_priorities %}
-                    <div>
-                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Likely Hiring Priorities</span>
-                        <ul class="mt-1.5 space-y-1">
-                            {% for priority in hiring_intel.strategic_interpretation.likely_hiring_priorities %}
-                            <li class="text-sm text-slate-700 flex items-start gap-1.5">
-                                <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-500 mt-0.5 flex-shrink-0"></i>
-                                {{ priority }}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Talent Risks -->
-                    {% if hiring_intel.strategic_interpretation.talent_risks %}
-                    <div>
-                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Talent Risks</span>
-                        <ul class="mt-1.5 space-y-1">
-                            {% for risk in hiring_intel.strategic_interpretation.talent_risks %}
-                            <li class="text-sm text-slate-700 flex items-start gap-1.5">
-                                <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0"></i>
-                                {{ risk }}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Org Pivots -->
-                    {% if hiring_intel.strategic_interpretation.org_pivots %}
-                    <div>
-                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Potential Pivots</span>
-                        <ul class="mt-1.5 space-y-1">
-                            {% for pivot in hiring_intel.strategic_interpretation.org_pivots %}
-                            <li class="text-sm text-slate-700 flex items-start gap-1.5">
-                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0"></i>
-                                {{ pivot }}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
-        
-        {% else %}
-        <div class="bg-slate-50 rounded-lg p-6 text-center border border-slate-200">
-            <p class="text-slate-600 text-sm">No hiring analysis available. Click "Update Analysis" to generate.</p>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
 <div class="mb-8">
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <section>
-            <div class="mb-6">
-                <h2 class="font-display text-xl font-semibold text-slate-900 mb-1">Signals</h2>
-                <p class="text-sm text-slate-600">Organizational and competitive changes detected for {{ company.name }}</p>
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="font-display text-xl font-semibold text-slate-900 mb-1">Competitor Signals</h2>
+                    <p class="text-sm text-slate-600">Changes detected in your competitors' organizations</p>
+                </div>
+                <form action="{{ url_for('main.refresh_signals') }}" method="POST">
+                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors duration-200">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        Refresh Signals
+                    </button>
+                </form>
             </div>
             
             {% if signals %}
             <div class="space-y-4">
                 {% for sig in signals %}
-                <div class="bg-slate-50 rounded-lg p-5 border border-slate-200">
+                <div class="bg-slate-50 rounded-lg p-5 border border-slate-200 {% if sig.is_new %}ring-2 ring-blue-200{% endif %}">
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center gap-3">
+                            {% if sig.is_new %}
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                                NEW
+                            </span>
+                            {% endif %}
                             <h3 class="text-lg font-semibold text-slate-900">
                                 {{ sig.message }}
                             </h3>
                             <!-- Signal Type Badge -->
                             <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                                {% if sig.signal_type == 'technical_focus' %}
-                                    bg-blue-50 text-blue-700 border border-blue-200
-                                {% elif sig.signal_type == 'hiring_trend' %}
-                                    bg-emerald-50 text-emerald-700 border border-emerald-200
-                                {% elif sig.signal_type == 'department_growth' %}
-                                    bg-purple-50 text-purple-700 border border-purple-200
-                                {% elif sig.signal_type == 'role_shift' %}
-                                    bg-amber-50 text-amber-700 border border-amber-200
+                                {% if sig.signal_type == 'headcount_change' %}
+                                    bg-orange-50 text-orange-700 border border-orange-200
+                                {% elif sig.signal_type == 'funding_change' %}
+                                    bg-green-50 text-green-700 border border-green-200
+                                {% elif sig.signal_type == 'industry_shift' %}
+                                    bg-indigo-50 text-indigo-700 border border-indigo-200
                                 {% else %}
                                     bg-slate-100 text-slate-600 border border-slate-200
                                 {% endif %}">
@@ -656,12 +385,18 @@
                             {{ sig.severity|capitalize }}
                         </span>
                     </div>
+                    {% if sig.competitor %}
+                    <p class="text-xs text-slate-500 mb-2">
+                        <i data-lucide="building-2" class="w-3 h-3 inline mr-1"></i>
+                        Competitor: <a href="{{ url_for('main.competitor_detail', competitor_id=sig.competitor_id) }}" class="text-blue-600 hover:underline">{{ sig.competitor.name }}</a>
+                    </p>
+                    {% endif %}
                     <p class="text-slate-600 text-sm leading-relaxed">
                         {{ sig.details }}
                     </p>
                     {% if sig.created_at %}
                     <p class="mt-2 text-xs text-slate-500">
-                        Detected on {{ sig.created_at.strftime('%Y-%m-%d') }}
+                        Detected on {{ sig.created_at.strftime('%Y-%m-%d at %H:%M') }}
                     </p>
                     {% endif %}
                 </div>
@@ -672,13 +407,133 @@
                 <div class="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
                     <i data-lucide="check-circle" class="w-8 h-8 text-primary-600"></i>
                 </div>
-                <h3 class="font-display text-lg font-semibold text-slate-900 mb-2">No Recent Changes</h3>
-                <p class="text-slate-600 text-sm">No organizational or competitive changes have been detected recently. We'll notify you when something significant happens.</p>
+                <h3 class="font-display text-lg font-semibold text-slate-900 mb-2">No Competitor Signals Yet</h3>
+                <p class="text-slate-600 text-sm mb-4">We're monitoring your competitors for changes. Signals will appear here when we detect meaningful shifts in their organization, funding, or strategy.</p>
+                <form action="{{ url_for('main.refresh_signals') }}" method="POST" class="inline">
+                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        Check for Signals
+                    </button>
+                </form>
             </div>
             {% endif %}
         </section>
     </div>
 </div>
+
+<!-- Competitor Profiles Section -->
+{% if competitor_snapshots %}
+<div class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <section>
+            <div class="mb-6">
+                <h2 class="font-display text-xl font-semibold text-slate-900 mb-1">Competitor Profiles</h2>
+                <p class="text-sm text-slate-600">AI-generated intelligence profiles for your competitors</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for comp_id, snapshot in competitor_snapshots.items() %}
+                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                    <!-- Header -->
+                    <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                <i data-lucide="building-2" class="w-5 h-5 text-indigo-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-slate-900">{{ snapshot.competitor_name }}</h3>
+                                {% if snapshot.data.basic and snapshot.data.basic.domain %}
+                                <p class="text-xs text-slate-500">{{ snapshot.data.basic.domain }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <button onclick="toggleSnapshot('{{ comp_id }}')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors duration-200">
+                            <i data-lucide="database" class="w-3 h-3"></i>
+                            View Data
+                        </button>
+                    </div>
+                    
+                    <!-- Quick Stats -->
+                    <div class="px-5 py-3 grid grid-cols-3 gap-4 text-center border-b border-slate-200">
+                        <div>
+                            <p class="text-xs text-slate-500 mb-1">Size</p>
+                            <p class="text-sm font-semibold text-slate-900">{{ snapshot.data.organization.employee_size if snapshot.data.organization else 'N/A' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 mb-1">Country</p>
+                            <p class="text-sm font-semibold text-slate-900">{{ snapshot.data.basic.country if snapshot.data.basic and snapshot.data.basic.country else 'N/A' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 mb-1">Industries</p>
+                            <p class="text-sm font-semibold text-slate-900">{{ snapshot.data.basic.industries|length if snapshot.data.basic and snapshot.data.basic.industries else 0 }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Hiring Focus -->
+                    {% if snapshot.data.hiring_focus %}
+                    <div class="px-5 py-3 border-b border-slate-200">
+                        <p class="text-xs font-medium text-slate-700 mb-2">Hiring Focus</p>
+                        <div class="flex flex-wrap gap-2">
+                            {% for role, score in snapshot.data.hiring_focus.items() %}
+                                {% if score > 0 %}
+                                <span class="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full
+                                    {% if score >= 4 %}bg-emerald-100 text-emerald-700{% elif score >= 2 %}bg-amber-100 text-amber-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ role|replace('_', ' ')|title }}
+                                    <span class="font-bold">{{ score }}</span>
+                                </span>
+                                {% endif %}
+                            {% endfor %}
+                            {% set has_hiring = namespace(value=false) %}
+                            {% for role, score in snapshot.data.hiring_focus.items() %}
+                                {% if score > 0 %}{% set has_hiring.value = true %}{% endif %}
+                            {% endfor %}
+                            {% if not has_hiring.value %}
+                            <span class="text-xs text-slate-400">No hiring signals detected</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Strategic Profile Summary -->
+                    {% if snapshot.data.strategic_profile %}
+                    <div class="px-5 py-3">
+                        {% if snapshot.data.strategic_profile.notable_strengths %}
+                        <p class="text-xs font-medium text-slate-700 mb-1">Strengths</p>
+                        <div class="flex flex-wrap gap-1 mb-2">
+                            {% for strength in snapshot.data.strategic_profile.notable_strengths[:3] %}
+                            <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">{{ strength }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if snapshot.data.strategic_profile.risk_factors %}
+                        <p class="text-xs font-medium text-slate-700 mb-1">Risks</p>
+                        <div class="flex flex-wrap gap-1">
+                            {% for risk in snapshot.data.strategic_profile.risk_factors[:3] %}
+                            <span class="px-2 py-0.5 text-xs bg-red-50 text-red-700 rounded">{{ risk }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Expandable Full Data -->
+                    <div id="snapshot-{{ comp_id }}" class="hidden border-t border-slate-200 bg-slate-100">
+                        <div class="px-5 py-4">
+                            <p class="text-xs font-medium text-slate-700 mb-2">Full Snapshot Data (JSON)</p>
+                            <pre class="text-xs bg-slate-900 text-emerald-400 p-4 rounded-lg overflow-x-auto max-h-64 overflow-y-auto">{{ snapshot.data|tojson(indent=2) }}</pre>
+                            {% if snapshot.created_at %}
+                            <p class="mt-2 text-xs text-slate-500">Last updated: {{ snapshot.created_at }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endif %}
+
 {% else %}
 <p class="text-slate-500 text-center py-12">No company information available.</p>
 {% endif %}
@@ -708,6 +563,13 @@ function showTab(tabName) {
     // Re-initialize Lucide icons for newly visible content
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
+    }
+}
+
+function toggleSnapshot(compId) {
+    const elem = document.getElementById('snapshot-' + compId);
+    if (elem) {
+        elem.classList.toggle('hidden');
     }
 }
 

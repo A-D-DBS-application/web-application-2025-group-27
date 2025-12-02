@@ -1,46 +1,37 @@
-# Rival — Competitive Intelligence & Market Insights Platform
+# Rival
 
-A Flask-based competitive intelligence platform that automatically enriches company data, discovers competitors, and generates AI-powered market insights using OpenAI GPT-4o-mini.
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.1-000000?style=flat&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
-![Flask](https://img.shields.io/badge/Flask-3.x-green.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+**Rival helps founders, operators and strategy teams understand their market at lightning speed.** With AI-driven monitoring, Rival tracks your competitor field and surfaces key company updates as they happen.
 
----
-
-## 📸 Screenshots
-
-### Landing Page
-![Landing](screenshots/landing.png)
-
-### Dashboard
-![Dashboard](screenshots/dashboard.png)
-
-### Hiring Intelligence
-![Hiring Intelligence](screenshots/hiring_intel.png)
-
-### The Team
-![The Team](screenshots/the_team.png)
+![Landing Page](images/app-screenshots/landing.png)
 
 ---
 
-## ✨ Key Features
+## 📋 Table of Contents
 
-### Company Intelligence
-- **Automatic Company Enrichment** — Fetches company data (employees, funding, industries, country) from CompanyEnrich API
-- **Competitor Discovery** — Automatically identifies and tracks similar companies
-- **Industry Classification** — Multi-industry tagging with normalized industry database
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Prototype](#-prototype-ui--interface)
+- [Installation](#-installation)
+- [Documentation](#-documentation)
+- [Kanban Board](#-kanban-board)
+- [Sprints](#-sprints)
+- [Team](#-team)
+- [License](#-license)
 
-### AI-Powered Analysis
-- **Competitive Landscape** — AI-generated market positioning summaries
-- **Market Positioning** — Structured strategic analysis (value proposition, competitive edge, weaknesses)
-- **Hiring Intelligence** — AI-inferred hiring focus, department signals, and strategic interpretation
-- **Signals & Alerts** — Automated detection of organizational and competitive changes
+---
 
-### Change Detection
-- **Snapshot System** — Historical company data snapshots for change tracking
-- **Diff Engine** — Compares snapshots to detect meaningful changes
-- **Smart Alerts** — AI-generated signals for headcount changes, industry shifts, funding updates
+## ✨ Features
+
+- **Company Tracking** — Monitor competitors with detailed company profiles
+- **AI-Powered Signals** — Receive automated insights about competitor activity
+- **Competitive Landscape** — AI-generated competitive analysis
+- **Company Enrichment** — Auto-enrich company data via external APIs
+- **Real-time Updates** — Stay informed with the latest market movements
 
 ---
 
@@ -48,220 +39,142 @@ A Flask-based competitive intelligence platform that automatically enriches comp
 
 | Layer | Technology |
 |-------|------------|
-| **Backend** | Python 3.10+, Flask 3.x, SQLAlchemy 2.x |
-| **Database** | PostgreSQL (via Supabase) |
-| **AI** | OpenAI GPT-4o-mini |
-| **Frontend** | Jinja2, Tailwind CSS (JIT), Lucide Icons |
-| **APIs** | CompanyEnrich API, OpenAI API |
+| **Backend** | Python 3.10+, Flask 3.1 |
+| **Database** | PostgreSQL (Supabase compatible) |
+| **ORM** | SQLAlchemy, Flask-Migrate (Alembic) |
+| **Frontend** | Jinja2 Templates, Tailwind CSS |
+| **AI** | OpenAI API |
+| **Data Enrichment** | CompanyEnrich API |
 
 ---
 
-## 🏗 Architecture
+## 🎨 Prototype (UI / Interface)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Browser (UI)                            │
-│                    Tailwind CSS + Lucide Icons                  │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Flask Application                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │ routes/      │  │ templates/   │  │ static/              │  │
-│  │  auth.py     │  │  base.html   │  │  styles.css          │  │
-│  │  main.py     │  │  index.html  │  │  css/                │  │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        Services Layer                           │
-│  ┌────────────────┐  ┌────────────────┐  ┌─────────────────┐   │
-│  │ company_api.py │  │ signals.py     │  │ market_         │   │
-│  │ (CompanyEnrich)│  │ (Snapshots,    │  │ positioning.py  │   │
-│  │                │  │  Diffs, Alerts)│  │ (AI Analysis)   │   │
-│  └────────────────┘  └────────────────┘  └─────────────────┘   │
-│  ┌────────────────┐  ┌────────────────┐                        │
-│  │ competitive_   │  │ competitor_    │                        │
-│  │ landscape.py   │  │ filter.py      │                        │
-│  └────────────────┘  └────────────────┘                        │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-                ┌───────────────┴───────────────┐
-                ▼                               ▼
-┌───────────────────────┐         ┌───────────────────────┐
-│   PostgreSQL (Supabase)│         │      OpenAI API       │
-│   ┌─────────────────┐ │         │   (GPT-4o-mini)       │
-│   │ company         │ │         │                       │
-│   │ user            │ │         │  • Competitive        │
-│   │ industries      │ │         │    Landscape          │
-│   │ company_industry│ │         │  • Market Positioning │
-│   │ company_competitor│         │  • Hiring Intelligence│
-│   │ company_snapshot│ │         │  • Signal Generation  │
-│   │ company_signal  │ │         │                       │
-│   │ market_positioning│         └───────────────────────┘
-│   └─────────────────┘ │
-└───────────────────────┘
-```
+**Live preview (valid for 7 days):**  
+[View Prototype on Lovable](https://id-preview--16083f01-3507-479c-aa76-f1d19ec41eb4.lovable.app/?__lovable_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiQWNZdU9wZWJ2ZVFzY0RMYm5Xb2llRkQ4cnNEMiIsInByb2plY3RfaWQiOiIxNjA4M2YwMS0zNTA3LTQ3OWMtYWE3Ni1mMWQxOWVjNDFlYjQiLCJub25jZSI6ImI4NWFiZWRmOTQ0NzY2ZjFjODNkNzk4YzBhNjcwMjE2IiwiaXNzIjoibG92YWJsZS1hcGkiLCJzdWIiOiIxNjA4M2YwMS0zNTA3LTQ3OWMtYWE3Ni1mMWQxOWVjNDFlYjQiLCJhdWQiOlsibG92YWJsZS1hcHAiXSwiZXhwIjoxNzY1MzAzODUwLCJuYmYiOjE3NjQ2OTkwNTAsImlhdCI6MTc2NDY5OTA1MH0.2RLsZbfeLxXpW2kcQG12vNDMWlbrlgn6Ioto0cs8lO0)
+
+> ⚠️ If the link has expired, replace it with a fresh 7-day share link from Lovable.
+
+<details>
+<summary>📸 UI Prototype Screenshots</summary>
+
+See all prototype screenshots in [`images/ui-prototype/`](images/ui-prototype/)
+
+</details>
 
 ---
 
 ## 📦 Installation
 
 ### Prerequisites
+
 - Python 3.10+
 - PostgreSQL database (or Supabase account)
-- OpenAI API key (optional, for AI features)
-- CompanyEnrich API key (optional, for company enrichment)
+- OpenAI API key *(optional, for AI features)*
+- CompanyEnrich API key *(optional, for company enrichment)*
 
 ### Setup
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/rival.git
-   cd rival
-   ```
+**1. Clone the repository**
 
-2. **Create virtual environment**
-   ```bash
-   python -m venv env
-   source env/bin/activate  # On Windows: env\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your actual values
-   ```
-
-5. **Run database migrations**
-   ```bash
-   export FLASK_APP="app:create_app"
-   flask db upgrade
-   ```
-
-6. **Start the server**
-   ```bash
-   python run.py
-   ```
-
-   The app will be available at `http://localhost:5000`
-
----
-
-## ⚙️ Environment Variables
-
-Create a `.env` file in the project root:
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SECRET_KEY` | Yes | Flask secret key for sessions |
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `OPENAI_API_KEY` | No | OpenAI API key for AI features |
-| `COMPANY_ENRICH_API_KEY` | No | CompanyEnrich API key for company data |
-| `FLASK_ENV` | No | `development` or `production` |
-
-See `.env.example` for a template.
-
----
-
-## 📁 Project Structure
-
-```
-rival/
-├── app.py                 # Flask application factory
-├── config.py              # Configuration settings
-├── models.py              # SQLAlchemy ORM models
-├── run.py                 # Development server entry point
-├── requirements.txt       # Python dependencies
-│
-├── routes/                # Flask blueprints
-│   ├── auth.py            # Authentication (login, signup, logout)
-│   └── main.py            # Main routes (dashboard, company, competitor)
-│
-├── services/              # Business logic
-│   ├── company_api.py     # CompanyEnrich API client
-│   ├── competitive_landscape.py  # AI landscape generation
-│   ├── competitor_filter.py      # Competitor filtering heuristics
-│   ├── market_positioning.py     # AI market positioning
-│   └── signals.py         # Snapshots, diffs, and alert generation
-│
-├── utils/                 # Utility functions
-│   ├── auth.py            # Authentication helpers
-│   └── company_helpers.py # Company data helpers
-│
-├── templates/             # Jinja2 templates
-│   ├── base.html          # Base layout
-│   ├── index.html         # Dashboard
-│   ├── company_detail.html
-│   ├── login.html
-│   ├── signup.html
-│   └── ...
-│
-├── static/                # Static assets
-│   ├── styles.css         # Custom CSS
-│   └── css/               # Additional stylesheets
-│
-└── migrations/            # Alembic database migrations
+```bash
+git clone https://github.com/your-username/rival.git
+cd rival
 ```
 
+**2. Create virtual environment**
+
+```bash
+python -m venv env
+source env/bin/activate  # On Windows: env\Scripts\activate
+```
+
+**3. Install dependencies**
+
+```bash
+pip install -r requirements.txt
+```
+
+**4. Configure environment**
+
+```bash
+cp .env.example .env
+# Edit .env with your actual values
+```
+
+Required environment variables:
+
+```env
+DATABASE_URL=postgresql://user:password@host:port/database
+SECRET_KEY=your-secret-key
+OPENAI_API_KEY=your-openai-key          # Optional
+COMPANYENRICH_API_KEY=your-api-key      # Optional
+```
+
+**5. Run database migrations**
+
+```bash
+export FLASK_APP="app:create_app"
+flask db upgrade
+```
+
+**6. Start the server**
+
+```bash
+python run.py
+```
+
+The app will be available at **[http://localhost:5000](http://localhost:5000)**.
+
 ---
 
-## 🔒 Security & Privacy
+## 📚 Documentation
 
-- **Never commit `.env` files** — Contains sensitive API keys
-- **Database credentials** — Store only in environment variables
-- **API keys** — Use `.env.example` as a template (no real values)
-- **Session security** — Flask's secure session handling
-
----
-
-## 🚀 API Routes
-
-### Public Routes
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Landing page (guests) / Dashboard (logged in) |
-| GET | `/login` | Login page |
-| POST | `/login` | Authenticate user |
-| GET | `/signup` | Registration page |
-| POST | `/signup` | Create account + company |
-| GET | `/about` | About page |
-
-### Authenticated Routes
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/company` | Company detail page |
-| GET | `/competitor/<id>` | Competitor detail page |
-| GET | `/market-positioning` | Market positioning analysis |
-| POST | `/refresh-analysis` | Refresh hiring intelligence |
-| POST | `/logout` | Log out |
+| Document | Description |
+|----------|-------------|
+| [API Guide](docs/API_GUIDE.md) | External API integration details |
+| [Enrichment & Caching](docs/ENRICHMENT_CACHING.md) | Company data enrichment system |
+| [Migration Guide](docs/MIGRATION_GUIDE.md) | Database migration instructions |
+| [Signals System](docs/Signals_System/README.md) | Real-time signals architecture |
+| [Full Documentation](docs/Final/Rival_Documentation.md) | Complete project documentation |
 
 ---
 
-## 🤝 Contributing
+## 🗂 Kanban Board
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Track project progress on our Miro board:
+
+🔗 [Miro Kanban Board](https://miro.com/app/board/uXjVJwMn8m4=/)
 
 ---
 
-## 📄 License
+## 🚀 Sprints
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### Sprint 1 — Feedback by Jeroen Vroman (StarApps)
+
+| Session | Recording |
+|---------|-----------|
+| Session 1 | [View Video](docs/sprints/first/Session_1.mp4) |
+| Session 2 | [View Video](docs/sprints/first/Session_2.mp4) |
+
+### Sprint 2
+
+*Videos to be added*
 
 ---
 
 ## 👥 Team
 
-Built by the Rival team
+![The Team](images/app-screenshots/the_team.png)
 
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+---
+
+<p align="center">
+  <sub>Built with ❤️ by the Rival Team</sub>
+</p>
