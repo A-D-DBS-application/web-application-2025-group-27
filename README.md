@@ -14,8 +14,8 @@ Simplified Flask MVP for startup intelligence tracking. This implementation focu
 - `services/company_api.py` – CompanyEnrich API client for company enrichment & competitor discovery
 - `services/competitor_filter.py` – Heuristics to clean/filter competitors from the API
 - `services/competitive_landscape.py` – AI-powered competitive landscape analysis using OpenAI
-- `services/algorithm.py` – Placeholder for future analysis algorithms
 - `utils/auth.py` – Authentication/session utilities (login, current user/company, decorators)
+- `utils/company_helpers.py` – Helper functions for company enrichment and landscape generation
 
 ### Database Schema (Simplified)
 
@@ -151,8 +151,7 @@ The system can automatically generate competitive landscape summaries using Open
 
 ### Core Algorithm
 
-The `services/algorithm.py` module is reserved for future algorithm implementations.  
-For now, the "algorithm" is mainly the CompanyEnrich-based enrichment and competitor discovery logic plus basic dashboard metrics (team size, competitors, industries, funding), combined with AI-powered competitive landscape analysis.
+The core "algorithm" is the CompanyEnrich-based enrichment and competitor discovery logic plus basic dashboard metrics (team size, competitors, industries, funding), combined with AI-powered competitive landscape analysis.
 
 ### Next Steps
 
