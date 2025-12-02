@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Competitor Signals - {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Competitor Signals</h1>
+            <p class="text-sm text-slate-600 mt-1">All signals have been marked as read</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <form action="{{ url_for('main.refresh_signals') }}" method="POST">
+                <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors duration-200">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    Refresh Signals
+                </button>
+            </form>
+            <a href="{{ url_for('main.homepage') }}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Category Filters -->
+<div class="mb-6 flex items-center gap-3">
+    <a href="{{ url_for('main.signals_page') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if not category_filter %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+        All
+    </a>
+    <a href="{{ url_for('main.signals_page', category='hiring') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if category_filter == 'hiring' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+        Hiring ({{ signals_by_category.hiring|length }})
+    </a>
+    <a href="{{ url_for('main.signals_page', category='product') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if category_filter == 'product' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+        Product ({{ signals_by_category.product|length }})
+    </a>
+    <a href="{{ url_for('main.signals_page', category='funding') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if category_filter == 'funding' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+        Funding ({{ signals_by_category.funding|length }})
+    </a>
+</div>
+
+{% if signals %}
+{% if category_filter %}
+<!-- Filtered view: show only selected category -->
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <div class="space-y-4">
+        {% for sig in signals %}
+        <div class="bg-slate-50 rounded-lg p-5 border border-slate-200">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-lg font-semibold text-slate-900">
+                        {{ sig.message }}
+                    </h3>
+                    <!-- Category Badge -->
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+                        {% if sig.category == 'hiring' %}
+                            bg-blue-50 text-blue-700 border border-blue-200
+                        {% elif sig.category == 'product' %}
+                            bg-purple-50 text-purple-700 border border-purple-200
+                        {% elif sig.category == 'funding' %}
+                            bg-green-50 text-green-700 border border-green-200
+                        {% else %}
+                            bg-slate-100 text-slate-600 border border-slate-200
+                        {% endif %}">
+                        {{ sig.category|title if sig.category else 'Other' }}
+                    </span>
+                </div>
+                <!-- Severity Badge -->
+                <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium
+                    {% if sig.severity == 'high' %}
+                        bg-red-50 text-red-700 border border-red-200
+                    {% elif sig.severity == 'medium' %}
+                        bg-amber-50 text-amber-700 border border-amber-200
+                    {% else %}
+                        bg-emerald-50 text-emerald-700 border border-emerald-200
+                    {% endif %}">
+                    {{ sig.severity|capitalize }}
+                </span>
+            </div>
+            {% if sig.competitor %}
+            <p class="text-xs text-slate-500 mb-2">
+                <i data-lucide="building-2" class="w-3 h-3 inline mr-1"></i>
+                Competitor: <a href="{{ url_for('main.competitor_detail', competitor_id=sig.competitor_id) }}" class="text-blue-600 hover:underline">{{ sig.competitor.name }}</a>
+            </p>
+            {% endif %}
+            <p class="text-slate-600 text-sm leading-relaxed">
+                {{ sig.details }}
+            </p>
+            {% if sig.created_at %}
+            <p class="mt-2 text-xs text-slate-500">
+                Detected on {{ sig.created_at.strftime('%Y-%m-%d at %H:%M') }}
+            </p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<!-- Grouped view: show all categories -->
+<div class="space-y-8">
+    <!-- Hiring Signals -->
+    {% if signals_by_category.hiring %}
+    <div>
+        <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+            Hiring Signals ({{ signals_by_category.hiring|length }})
+        </h2>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="space-y-4">
+                {% for sig in signals_by_category.hiring %}
+                <div class="bg-slate-50 rounded-lg p-5 border border-slate-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-lg font-semibold text-slate-900">
+                                {{ sig.message }}
+                            </h3>
+                        </div>
+                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium
+                            {% if sig.severity == 'high' %}
+                                bg-red-50 text-red-700 border border-red-200
+                            {% elif sig.severity == 'medium' %}
+                                bg-amber-50 text-amber-700 border border-amber-200
+                            {% else %}
+                                bg-emerald-50 text-emerald-700 border border-emerald-200
+                            {% endif %}">
+                            {{ sig.severity|capitalize }}
+                        </span>
+                    </div>
+                    {% if sig.competitor %}
+                    <p class="text-xs text-slate-500 mb-2">
+                        <i data-lucide="building-2" class="w-3 h-3 inline mr-1"></i>
+                        Competitor: <a href="{{ url_for('main.competitor_detail', competitor_id=sig.competitor_id) }}" class="text-blue-600 hover:underline">{{ sig.competitor.name }}</a>
+                    </p>
+                    {% endif %}
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        {{ sig.details }}
+                    </p>
+                    {% if sig.created_at %}
+                    <p class="mt-2 text-xs text-slate-500">
+                        Detected on {{ sig.created_at.strftime('%Y-%m-%d at %H:%M') }}
+                    </p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Product Signals -->
+    {% if signals_by_category.product %}
+    <div>
+        <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+            Product Signals ({{ signals_by_category.product|length }})
+        </h2>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="space-y-4">
+                {% for sig in signals_by_category.product %}
+                <div class="bg-slate-50 rounded-lg p-5 border border-slate-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-lg font-semibold text-slate-900">
+                                {{ sig.message }}
+                            </h3>
+                        </div>
+                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium
+                            {% if sig.severity == 'high' %}
+                                bg-red-50 text-red-700 border border-red-200
+                            {% elif sig.severity == 'medium' %}
+                                bg-amber-50 text-amber-700 border border-amber-200
+                            {% else %}
+                                bg-emerald-50 text-emerald-700 border border-emerald-200
+                            {% endif %}">
+                            {{ sig.severity|capitalize }}
+                        </span>
+                    </div>
+                    {% if sig.competitor %}
+                    <p class="text-xs text-slate-500 mb-2">
+                        <i data-lucide="building-2" class="w-3 h-3 inline mr-1"></i>
+                        Competitor: <a href="{{ url_for('main.competitor_detail', competitor_id=sig.competitor_id) }}" class="text-blue-600 hover:underline">{{ sig.competitor.name }}</a>
+                    </p>
+                    {% endif %}
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        {{ sig.details }}
+                    </p>
+                    {% if sig.created_at %}
+                    <p class="mt-2 text-xs text-slate-500">
+                        Detected on {{ sig.created_at.strftime('%Y-%m-%d at %H:%M') }}
+                    </p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Funding Signals -->
+    {% if signals_by_category.funding %}
+    <div>
+        <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+            Funding Signals ({{ signals_by_category.funding|length }})
+        </h2>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div class="space-y-4">
+                {% for sig in signals_by_category.funding %}
+                <div class="bg-slate-50 rounded-lg p-5 border border-slate-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-lg font-semibold text-slate-900">
+                                {{ sig.message }}
+                            </h3>
+                        </div>
+                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium
+                            {% if sig.severity == 'high' %}
+                                bg-red-50 text-red-700 border border-red-200
+                            {% elif sig.severity == 'medium' %}
+                                bg-amber-50 text-amber-700 border border-amber-200
+                            {% else %}
+                                bg-emerald-50 text-emerald-700 border border-emerald-200
+                            {% endif %}">
+                            {{ sig.severity|capitalize }}
+                        </span>
+                    </div>
+                    {% if sig.competitor %}
+                    <p class="text-xs text-slate-500 mb-2">
+                        <i data-lucide="building-2" class="w-3 h-3 inline mr-1"></i>
+                        Competitor: <a href="{{ url_for('main.competitor_detail', competitor_id=sig.competitor_id) }}" class="text-blue-600 hover:underline">{{ sig.competitor.name }}</a>
+                    </p>
+                    {% endif %}
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        {{ sig.details }}
+                    </p>
+                    {% if sig.created_at %}
+                    <p class="mt-2 text-xs text-slate-500">
+                        Detected on {{ sig.created_at.strftime('%Y-%m-%d at %H:%M') }}
+                    </p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% else %}
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+    <div class="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="check-circle" class="w-8 h-8 text-primary-600"></i>
+    </div>
+    <h3 class="font-display text-lg font-semibold text-slate-900 mb-2">No Competitor Signals Yet</h3>
+    <p class="text-slate-600 text-sm mb-4">We're monitoring your competitors for changes. Signals will appear here when we detect meaningful shifts in their organization, funding, or strategy.</p>
+    <form action="{{ url_for('main.refresh_signals') }}" method="POST" class="inline">
+        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            Check for Signals
+        </button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

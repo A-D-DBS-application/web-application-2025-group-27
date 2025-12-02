@@ -1,0 +1,47 @@
+/* 
+ * Rival - Custom CSS
+ * Note: Primary styling is handled by Tailwind CSS (via CDN in base.html)
+ * This file contains only legacy styles that may be referenced by older components.
+ */
+
+/* Legacy variables (kept for backwards compatibility) */
+:root {
+    --accent-blue: #4c8dff;
+    --accent-success: #22c55e;
+    --accent-error: #f97373;
+    --radius-lg: 12px;
+    --radius-sm: 8px;
+    --transition-fast: 0.15s ease;
+}
+
+/* Base reset */
+* { box-sizing: border-box; }
+
+/* Legacy link styles */
+a { transition: all var(--transition-fast); }
+
+/* Legacy flash messages (now handled by Tailwind in base.html) */
+.flash-messages { list-style: none; padding: 0; margin: 16px auto 0; max-width: 1100px; }
+.flash-messages li {
+    padding: 10px 14px; 
+    margin-bottom: 8px; 
+    border-radius: var(--radius-sm);
+    font-weight: 400; 
+    border: 1px solid transparent; 
+    font-size: 14px;
+}
+.flash-messages li.success { 
+    background-color: rgba(22,163,74,0.16); 
+    border-color: rgba(22,163,74,0.6); 
+    color: #16a34a; 
+}
+.flash-messages li.error { 
+    background-color: rgba(220,38,38,0.16); 
+    border-color: rgba(220,38,38,0.6); 
+    color: #dc2626; 
+}
+
+/* Print styles */
+@media print {
+    .no-print { display: none !important; }
+}
