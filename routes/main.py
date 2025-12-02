@@ -1,5 +1,6 @@
 """Main application routes - simplified for MVP."""
 
+import traceback
 import uuid
 from flask import Blueprint, g, render_template, redirect, url_for, flash
 from app import db
@@ -11,6 +12,7 @@ from services.company_api import (
     needs_api_fetch,
     link_company_industries
 )
+from services.competitive_landscape import generate_competitive_landscape
 
 main_bp = Blueprint("main", __name__)
 
@@ -86,7 +88,6 @@ def homepage():
         )
     except Exception as e:
         db.session.rollback()
-        import traceback
         flash(f"Error loading homepage: {str(e)}", "error")
         return f"Error: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
@@ -112,6 +113,19 @@ def company_detail():
             db.session.commit()
     
     industries = [link.industry for link in company.industries if link and link.industry]
+    
+    # Generate competitive landscape if not already generated
+    if not company.competitive_landscape:
+        competitors = [link.competitor for link in company.competitors if link and link.competitor]
+        if competitors:
+            try:
+                landscape = generate_competitive_landscape(company, competitors)
+                if landscape:
+                    company.competitive_landscape = landscape
+                    db.session.commit()
+                    db.session.refresh(company)
+            except Exception:
+                db.session.rollback()
     
     return render_template(
         "company_detail.html",
@@ -161,6 +175,19 @@ def competitor_detail(competitor_id):
             db.session.commit()
     
     competitor_industries = [link.industry for link in competitor.industries if link and link.industry]
+    
+    # Generate competitive landscape for competitor if not already generated
+    if not competitor.competitive_landscape:
+        competitor_competitors = [link.competitor for link in competitor.competitors if link and link.competitor]
+        if competitor_competitors:
+            try:
+                landscape = generate_competitive_landscape(competitor, competitor_competitors)
+                if landscape:
+                    competitor.competitive_landscape = landscape
+                    db.session.commit()
+                    db.session.refresh(competitor)
+            except Exception:
+                db.session.rollback()
     
     return render_template(
         "company_detail.html",

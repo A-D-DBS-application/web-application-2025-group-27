@@ -13,6 +13,7 @@ from services.company_api import (
     link_company_industries
 )
 from services.competitor_filter import filter_competitors
+from services.competitive_landscape import generate_competitive_landscape
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -163,6 +164,15 @@ def signup():
                         db.session.add(competitor_link)
                 
                 db.session.flush()
+                
+                # Generate competitive landscape after competitors are added
+                # Refresh company to get updated competitors relationship
+                db.session.refresh(company)
+                competitors = [link.competitor for link in company.competitors if link and link.competitor]
+                if competitors:
+                    landscape = generate_competitive_landscape(company, competitors)
+                    if landscape:
+                        company.competitive_landscape = landscape
     
     user = User()
     user.email = email

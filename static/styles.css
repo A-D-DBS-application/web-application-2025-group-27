@@ -355,6 +355,11 @@ p {
     line-height: 1.5;
 }
 
+.competitive-landscape {
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
 .detail-footer {
     font-size: 13px;
     color: var(--text-secondary);
@@ -714,6 +719,39 @@ select:focus {
     transform: translateY(-1px);
 }
 
+/* Template utility classes */
+.text-muted {
+    opacity: 0.5;
+}
+
+.card-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.card-footer-auto {
+    margin-top: auto;
+}
+
+.btn-full-width {
+    width: 100%;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+}
+
+.stacked-block-spacing {
+    margin-top: 0.75rem;
+}
+
+.breadcrumb-link {
+    display: inline-block;
+    margin-bottom: 1rem;
+    text-decoration: none;
+    font-weight: 500;
+}
+
 @media (max-width: 900px) {
     .site-header {
         flex-direction: column;
@@ -730,9 +768,7 @@ select:focus {
         grid-template-columns: 1fr;
         padding: 16px;
     }
-}
 
-@media (max-width: 900px) {
     .dashboard-main-grid {
         grid-template-columns: 1fr;
     }

@@ -107,6 +107,16 @@
         </div>
         {% endif %}
 
+        <!-- Competitive Landscape -->
+        {% if company_obj.competitive_landscape %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="font-display text-xl font-semibold text-slate-900 mb-4">Competitive Landscape</h2>
+            <p class="text-slate-600 leading-relaxed">
+                {{ company_obj.competitive_landscape }}
+            </p>
+        </div>
+        {% endif %}
+
         <!-- Last Updated -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <p class="text-sm text-slate-500">

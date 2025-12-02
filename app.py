@@ -1,5 +1,7 @@
 """Application factory for the Flask app - simplified for MVP."""
 
+import traceback
+
 # Load environment variables BEFORE importing Config
 try:
     from dotenv import load_dotenv
@@ -47,17 +49,10 @@ def create_app():
             "current_user": getattr(g, "current_user", None),
         }
     
-    @app.errorhandler(500)
-    def internal_error(error):
-        """Handle internal server errors."""
-        db.session.rollback()
-        return "Internal Server Error: " + str(error), 500
-    
     @app.errorhandler(Exception)
     def handle_exception(e):
         """Handle all exceptions."""
         db.session.rollback()
-        import traceback
         return f"Error: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
     return app

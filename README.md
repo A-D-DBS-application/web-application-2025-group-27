@@ -13,6 +13,7 @@ Simplified Flask MVP for startup intelligence tracking. This implementation focu
 - `routes/main.py` – Main application routes (dashboard, company detail, competitor detail, health)
 - `services/company_api.py` – CompanyEnrich API client for company enrichment & competitor discovery
 - `services/competitor_filter.py` – Heuristics to clean/filter competitors from the API
+- `services/competitive_landscape.py` – AI-powered competitive landscape analysis using OpenAI
 - `services/algorithm.py` – Placeholder for future analysis algorithms
 - `utils/auth.py` – Authentication/session utilities (login, current user/company, decorators)
 
@@ -26,7 +27,7 @@ user ──► company ──► company_competitor ──► company
 ```
 
 - **User**: email, first/last name, company_id, role, is_active
-- **Company**: name, domain, website, headline, number_of_employees, funding, industry, country, updated_at
+- **Company**: name, domain, website, headline, number_of_employees, funding, industry, country, updated_at, competitive_landscape
 - **Industry**: canonical industry names
 - **CompanyIndustry**: many‑to‑many bridge between companies and industries
 - **CompanyCompetitor**: simple competitor relationships between companies
@@ -61,6 +62,10 @@ user ──► company ──► company_competitor ──► company
    # Optional: CompanyEnrich API (for automatic company data enrichment)
    # Get your API key from https://app.companyenrich.com/
    COMPANY_ENRICH_API_KEY=your-companyenrich-api-key-here
+   
+   # Optional: OpenAI API (for AI-powered competitive landscape analysis)
+   # Get your API key from https://platform.openai.com/api-keys
+   OPENAI_API_KEY=your-openai-api-key-here
    ```
    
    See `docs/API_SETUP.md` for detailed API key setup instructions and `docs/CREDITS_CALCULATION.md` for API credit usage.
@@ -124,16 +129,36 @@ See:
 - If no API key is set, signup still works, but company data must be entered manually and no competitors are fetched.  
 - API calls are only made when needed (new company or stale/missing data) to reduce credit usage.
 
+### AI-Powered Competitive Landscape Analysis
+
+The system can automatically generate competitive landscape summaries using OpenAI's GPT-4o-mini model. This feature is available when an `OPENAI_API_KEY` is configured.
+
+**How it works:**
+- When viewing a company detail page (`/company` or `/competitor/<id>`), the system checks if a competitive landscape summary exists
+- If not, it automatically generates a 5-7 sentence analytical summary based on:
+  - Company description/headline
+  - Industry classifications
+  - Known competitors
+- The generated landscape covers:
+  - Market position and competitive pressures
+  - Differentiation factors
+  - Strategic considerations and risks
+- The summary is cached in the `competitive_landscape` field to avoid repeated API calls
+
+**Note:**  
+- If no OpenAI API key is set, the feature is silently disabled and no landscape summaries are generated
+- Landscape generation only occurs when competitors are available for analysis
+
 ### Core Algorithm
 
 The `services/algorithm.py` module is reserved for future algorithm implementations.  
-For now, the “algorithm” is mainly the CompanyEnrich-based enrichment and competitor discovery logic plus basic dashboard metrics (team size, competitors, industries, funding).
+For now, the "algorithm" is mainly the CompanyEnrich-based enrichment and competitor discovery logic plus basic dashboard metrics (team size, competitors, industries, funding), combined with AI-powered competitive landscape analysis.
 
 ### Next Steps
 
 After MVP validation, consider adding:
 - Product tracking
 - Industry categorization
-- External API integration (optional)
-- Detail pages
 - Advanced company analysis algorithms
+- Enhanced competitive intelligence features
+- Real-time market monitoring

@@ -52,6 +52,7 @@ class Company(db.Model):
     
     # Metadata
     updated_at = db.Column(db.DateTime)  # Last update timestamp from API
+    competitive_landscape = db.Column(db.Text)  # AI-generated competitive landscape summary
     
     users = db.relationship("User", back_populates="company")
     competitors = db.relationship(
