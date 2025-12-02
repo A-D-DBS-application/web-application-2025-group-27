@@ -16,9 +16,13 @@ main_bp = Blueprint("main", __name__)
 
 
 @main_bp.route("/", methods=["GET"])
-@require_login
 def homepage():
-    """Display the main dashboard - simplified for MVP."""
+    """Display landing page for non-logged-in users, main dashboard for logged-in users."""
+    # Show landing page if user is not logged in
+    if not getattr(g, "current_user", None):
+        return render_template("landing.html")
+    
+    # Show dashboard for logged-in users
     try:
         company = g.current_company
         
@@ -164,6 +168,21 @@ def competitor_detail(competitor_id):
         industries=competitor_industries,
         is_competitor=True,
     )
+
+
+@main_bp.route("/about", methods=["GET"])
+def about():
+    """Display about page with founder information."""
+    from flask import url_for
+    founders = [
+        {"name": "Leo He", "role": "Co-founder", "image": url_for('static', filename='images/founders/6254D7A5-E3E1-4782-B39C-63BDC5D53FD4_1_105_c.jpeg')},
+        {"name": "Nathan Denys", "role": "Co-founder", "image": url_for('static', filename='images/founders/nathan-denys.jpg')},
+        {"name": "Jean Knecht", "role": "Co-founder", "image": url_for('static', filename='images/founders/jean-knecht.jpg')},
+        {"name": "Niels Herreman", "role": "Co-founder", "image": url_for('static', filename='images/founders/niels-herreman.jpg')},
+        {"name": "Mattis Malfait", "role": "Co-founder", "image": url_for('static', filename='images/founders/mattis-malfait.jpg')},
+        {"name": "Jeroen Vroman", "role": "Co-founder", "image": url_for('static', filename='images/founders/jeroen-vroman.jpg')},
+    ]
+    return render_template("about.html", founders=founders)
 
 
 @main_bp.route("/health", methods=["GET"])
