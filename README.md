@@ -10,10 +10,17 @@ A Flask-based competitive intelligence platform that automatically enriches comp
 
 ## 📸 Screenshots
 
-<!-- Add screenshots here -->
-| Dashboard | Market Positioning | Hiring Intelligence |
-|-----------|-------------------|---------------------|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Market](docs/screenshots/market-positioning.png) | ![Hiring](docs/screenshots/hiring-intelligence.png) |
+### Landing Page
+![Landing](screenshots/landing.png)
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### Hiring Intelligence
+![Hiring Intelligence](screenshots/hiring_intel.png)
+
+### The Team
+![The Team](screenshots/the_team.png)
 
 ---
 
