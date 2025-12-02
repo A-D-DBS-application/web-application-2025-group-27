@@ -1,6 +1,5 @@
 """Main application routes - dashboard, company details, signals."""
 
-import json
 import uuid
 
 from flask import Blueprint, flash, g, redirect, render_template, url_for
@@ -57,29 +56,11 @@ def homepage():
     except Exception:
         db.session.rollback()
     
-    # Market positioning
-    from services.market_positioning import generate_market_positioning
-    mp = generate_market_positioning(company)
-    
-    # Signals and hiring intelligence
-    from services.signals import (
-        get_default_hiring_intelligence,
-        load_last_snapshot,
-        refresh_company_signals,
-    )
-    signals = refresh_company_signals(company)
-    
-    hiring_intel = None
-    last_snap = load_last_snapshot(company)
-    if last_snap:
-        try:
-            snap_data = json.loads(last_snap.data)
-            hiring_intel = snap_data.get("hiring_intelligence")
-        except Exception:
-            pass
-    
-    if not hiring_intel:
-        hiring_intel = get_default_hiring_intelligence()
+    # Competitor signals, unread count, and snapshots
+    from services.signals import get_competitor_signals, count_unread_signals, get_all_competitor_snapshots
+    signals = get_competitor_signals(company)
+    unread_count = count_unread_signals(company)
+    competitor_snapshots = get_all_competitor_snapshots(company)
     
     # Build metrics
     industries = get_company_industries(company)
@@ -98,9 +79,37 @@ def homepage():
         industries=industries,
         metrics=metrics,
         competitor_view_models=competitor_view_models,
-        mp=mp,
         signals=signals,
-        hiring_intel=hiring_intel,
+        unread_count=unread_count,
+        competitor_snapshots=competitor_snapshots,
+    )
+
+
+# =============================================================================
+# Signals Page (marks signals as read)
+# =============================================================================
+
+@main_bp.route("/signals", methods=["GET"])
+@require_login
+def signals_page():
+    """Display signals page and mark all signals as read."""
+    company = g.current_company
+    if not company:
+        flash("Company not found.", "error")
+        return redirect(url_for("main.homepage"))
+    
+    from services.signals import get_competitor_signals, mark_signals_as_read
+    
+    # Mark all signals as read
+    mark_signals_as_read(company)
+    
+    # Get all signals
+    signals = get_competitor_signals(company)
+    
+    return render_template(
+        "signals.html",
+        company=company,
+        signals=signals,
     )
 
 
@@ -174,40 +183,22 @@ def competitor_detail(competitor_id):
 
 
 # =============================================================================
-# Market Positioning
+# Refresh Competitor Signals
 # =============================================================================
 
-@main_bp.route("/market-positioning", methods=["GET"])
+@main_bp.route("/refresh-signals", methods=["POST"])
 @require_login
-def market_positioning():
-    """Display market positioning analysis."""
+def refresh_signals():
+    """Force refresh competitor signals."""
     company = g.current_company
     if not company:
         flash("Company not found.", "error")
         return redirect(url_for("main.homepage"))
     
-    from services.market_positioning import generate_market_positioning
-    mp = generate_market_positioning(company)
-    return render_template("market_positioning.html", company=company, mp=mp)
-
-
-# =============================================================================
-# Hiring Analysis Refresh
-# =============================================================================
-
-@main_bp.route("/refresh-analysis", methods=["POST"])
-@require_login
-def refresh_analysis():
-    """Force refresh hiring analysis with new OpenAI call."""
-    company = g.current_company
-    if not company:
-        flash("Company not found.", "error")
-        return redirect(url_for("main.homepage"))
+    from services.signals import refresh_competitor_signals
+    refresh_competitor_signals(company)
     
-    from services.signals import force_refresh_analysis
-    force_refresh_analysis(company)
-    
-    flash("Hiring analysis updated successfully!", "success")
+    flash("Competitor signals refreshed!", "success")
     return redirect(url_for("main.homepage") + "#signals")
 
 

@@ -68,20 +68,16 @@ class Company(db.Model):
         back_populates="company",
         cascade="all, delete-orphan",
     )
-    market_positioning = db.relationship(
-        "MarketPositioning",
-        back_populates="company",
-        uselist=False,
-        cascade="all, delete-orphan",
-    )
     snapshots = db.relationship(
         "CompanySnapshot",
+        foreign_keys="CompanySnapshot.company_id",
         back_populates="company",
         cascade="all, delete-orphan",
         order_by="CompanySnapshot.created_at.desc()",
     )
     signals = db.relationship(
         "CompanySignal",
+        foreign_keys="CompanySignal.company_id",
         back_populates="company",
         cascade="all, delete-orphan",
         order_by="CompanySignal.created_at.desc()",
@@ -146,60 +142,48 @@ class CompanyIndustry(db.Model):
         return f"<CompanyIndustry company_id={self.company_id} industry_id={self.industry_id}>"
 
 
-class MarketPositioning(db.Model):
-    """AI-generated market positioning insights for a company."""
-    __tablename__ = "market_positioning"
-    
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    company_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), unique=True, nullable=False)
-    
-    value_proposition = db.Column(db.Text)
-    competitive_edge = db.Column(db.Text)
-    brand_perception = db.Column(db.Text)
-    key_segments = db.Column(db.Text)
-    weaknesses = db.Column(db.Text)
-    opportunity_areas = db.Column(db.Text)
-    summary = db.Column(db.Text)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    company = db.relationship("Company", back_populates="market_positioning")
-    
-    def __repr__(self) -> str:
-        return f"<MarketPositioning company_id={self.company_id}>"
-
-
 class CompanySnapshot(db.Model):
-    """Snapshot of company data for change detection."""
+    """Snapshot of competitor data for change detection.
+    
+    Snapshots are taken for COMPETITORS only, not for the main company.
+    """
     __tablename__ = "company_snapshot"
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     company_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=False)
+    competitor_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=True)
     data = db.Column(db.Text, nullable=False)  # JSON snapshot
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    company = db.relationship("Company", back_populates="snapshots")
+    company = db.relationship("Company", foreign_keys=[company_id], back_populates="snapshots")
+    competitor = db.relationship("Company", foreign_keys=[competitor_id])
     
     def __repr__(self) -> str:
-        return f"<CompanySnapshot company_id={self.company_id} created_at={self.created_at}>"
+        return f"<CompanySnapshot company_id={self.company_id} competitor_id={self.competitor_id}>"
 
 
 class CompanySignal(db.Model):
-    """AI-generated signals/alerts for company changes."""
+    """AI-generated signals/alerts for COMPETITOR changes.
+    
+    Signals are generated ONLY for competitors, never for the main company.
+    """
     __tablename__ = "company_signal"
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     company_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=False)
+    competitor_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=True)
     signal_type = db.Column(db.String(64))  # headcount_change, industry_shift, etc.
     severity = db.Column(db.String(16))  # low, medium, high
     message = db.Column(db.Text)  # Short UI-ready message
     details = db.Column(db.Text)  # Longer explanation
+    is_new = db.Column(db.Boolean, default=True, nullable=False)  # Unread tracking
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    company = db.relationship("Company", back_populates="signals")
+    company = db.relationship("Company", foreign_keys=[company_id], back_populates="signals")
+    competitor = db.relationship("Company", foreign_keys=[competitor_id])
     
     def __repr__(self) -> str:
-        return f"<CompanySignal company_id={self.company_id} type={self.signal_type}>"
+        return f"<CompanySignal company_id={self.company_id} competitor_id={self.competitor_id} type={self.signal_type}>"
 
 
 class CompanyCompetitor(db.Model):

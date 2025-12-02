@@ -45,7 +45,17 @@ def login():
         flash("Account is disabled.", "error")
         return render_template("login.html")
     
+    # Log in the user
     login_user(user)
+    
+    # Refresh competitor signals on login
+    if user.company:
+        from services.signals import refresh_competitor_signals
+        try:
+            refresh_competitor_signals(user.company)
+        except Exception:
+            pass  # Don't block login if signal refresh fails
+    
     return redirect(request.args.get("next") or url_for("main.homepage"))
 
 
@@ -182,6 +192,14 @@ def signup():
     db.session.commit()
     
     login_user(user)
+    
+    # Initialize competitor signals on signup
+    from services.signals import refresh_competitor_signals
+    try:
+        refresh_competitor_signals(company)
+    except Exception:
+        pass
+    
     return redirect(url_for("main.homepage"))
 
 

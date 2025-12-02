@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Competitor Signals - {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Competitor Signals</h1>
+            <p class="text-sm text-slate-600 mt-1">All signals have been marked as read</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <form action="{{ url_for('main.refresh_signals') }}" method="POST">
+                <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors duration-200">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    Refresh Signals
+                </button>
+            </form>
+            <a href="{{ url_for('main.homepage') }}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if signals %}
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <div class="space-y-4">
+        {% for sig in signals %}
+        <div class="bg-slate-50 rounded-lg p-5 border border-slate-200">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-lg font-semibold text-slate-900">
+                        {{ sig.message }}
+                    </h3>
+                    <!-- Signal Type Badge -->
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+                        {% if sig.signal_type == 'headcount_change' %}
+                            bg-orange-50 text-orange-700 border border-orange-200
+                        {% elif sig.signal_type == 'funding_change' %}
+                            bg-green-50 text-green-700 border border-green-200
+                        {% elif sig.signal_type == 'industry_shift' %}
+                            bg-indigo-50 text-indigo-700 border border-indigo-200
+                        {% else %}
+                            bg-slate-100 text-slate-600 border border-slate-200
+                        {% endif %}">
+                        {{ sig.signal_type|replace('_', ' ')|title }}
+                    </span>
+                </div>
+                <!-- Severity Badge -->
+                <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium
+                    {% if sig.severity == 'high' %}
+                        bg-red-50 text-red-700 border border-red-200
+                    {% elif sig.severity == 'medium' %}
+                        bg-amber-50 text-amber-700 border border-amber-200
+                    {% else %}
+                        bg-emerald-50 text-emerald-700 border border-emerald-200
+                    {% endif %}">
+                    {{ sig.severity|capitalize }}
+                </span>
+            </div>
+            {% if sig.competitor %}
+            <p class="text-xs text-slate-500 mb-2">
+                <i data-lucide="building-2" class="w-3 h-3 inline mr-1"></i>
+                Competitor: <a href="{{ url_for('main.competitor_detail', competitor_id=sig.competitor_id) }}" class="text-blue-600 hover:underline">{{ sig.competitor.name }}</a>
+            </p>
+            {% endif %}
+            <p class="text-slate-600 text-sm leading-relaxed">
+                {{ sig.details }}
+            </p>
+            {% if sig.created_at %}
+            <p class="mt-2 text-xs text-slate-500">
+                Detected on {{ sig.created_at.strftime('%Y-%m-%d at %H:%M') }}
+            </p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+    <div class="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="check-circle" class="w-8 h-8 text-primary-600"></i>
+    </div>
+    <h3 class="font-display text-lg font-semibold text-slate-900 mb-2">No Competitor Signals Yet</h3>
+    <p class="text-slate-600 text-sm mb-4">We're monitoring your competitors for changes. Signals will appear here when we detect meaningful shifts in their organization, funding, or strategy.</p>
+    <form action="{{ url_for('main.refresh_signals') }}" method="POST" class="inline">
+        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            Check for Signals
+        </button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}
