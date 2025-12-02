@@ -2,47 +2,161 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Startup Intelligence{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config with Custom Colors and Fonts -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#ecfdf5',
+                            600: '#059669',
+                            700: '#047857',
+                        },
+                        warm: {
+                            50: '#FAF8F3',
+                            100: '#F5F3ED',
+                        },
+                    },
+                    fontFamily: {
+                        display: ['Crimson Pro', 'serif'],
+                        body: ['Manrope', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Custom styles for flash messages -->
+    <style>
+        .flash-message {
+            @apply p-4 rounded-lg mb-4;
+        }
+        .flash-message.error {
+            @apply bg-red-50 text-red-800 border border-red-200;
+        }
+        .flash-message.success {
+            @apply bg-emerald-50 text-emerald-800 border border-emerald-200;
+        }
+        .flash-message.info {
+            @apply bg-blue-50 text-blue-800 border border-blue-200;
+        }
+    </style>
 </head>
-<body>
-    <nav class="navbar">
-        <span class="navbar-title">Rival Dashboard</span>
-        <div class="top-right">
-            {% if current_user %}
-                <span class="top-pill">Logged in as {{ current_user.first_name }}</span>
-                <form class="logout-form" action="{{ url_for('auth.logout') }}" method="POST">
-                    <button type="submit" class="btn btn-small">Log out</button>
-                </form>
-            {% else %}
-                <span class="top-pill"><a href="{{ url_for('auth.signup') }}">Sign up</a></span>
-                <span class="top-pill"><a href="{{ url_for('auth.login') }}">Log in</a></span>
-            {% endif %}
+<body class="bg-warm-50 font-body text-slate-900">
+    <!-- Sticky Navigation -->
+    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    {% if current_user and current_company %}
+                        <div class="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center">
+                            <span class="text-white font-semibold text-lg">
+                                {{ current_company.name[0]|upper }}
+                            </span>
+                        </div>
+                        <h1 class="text-xl font-display font-semibold text-slate-900">
+                            {{ current_company.name|title }}
+                        </h1>
+                    {% else %}
+                        {% block logo_link %}
+                        <a href="{{ url_for('main.homepage') if current_user else url_for('auth.login') }}" class="text-lg font-display font-semibold text-slate-900 hover:text-primary-600 transition-colors duration-200">
+                            Rival
+                        </a>
+                        {% endblock %}
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-3">
+                    {% block nav_links %}
+                    <a href="{{ url_for('main.about') }}" class="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors duration-200">
+                        About
+                    </a>
+                    {% endblock %}
+                    {% if current_user %}
+                        {% block user_info %}
+                        <div class="relative">
+                            <button onclick="toggleUserMenu()" class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-700 hover:bg-slate-300 transition-colors duration-200 cursor-pointer">
+                                {% set initials = current_user.first_name[0] + (current_user.last_name[0] if current_user.last_name else '') %}
+                                {{ initials }}
+                            </button>
+                            <div id="user-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
+                                <form action="{{ url_for('auth.logout') }}" method="POST" class="w-full">
+                                    <button type="submit" class="w-full text-left px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors duration-200">
+                                        Log out
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endblock %}
+                    {% else %}
+                        {% block auth_buttons %}
+                        <a href="{{ url_for('auth.signup') }}" class="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-all duration-200">
+                            Sign up
+                        </a>
+                        <a href="{{ url_for('auth.login') }}" class="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-all duration-200">
+                            Log in
+                        </a>
+                        {% endblock %}
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </nav>
-    <header class="site-header">
-        <a class="brand" href="{{ url_for('main.homepage') if current_user else url_for('auth.login') }}">Startup Intelligence</a>
-        <nav class="site-nav">
-            {% if current_user and current_company %}
-                <span class="nav-context">Company: {{ current_company.name }}</span>
-            {% endif %}
-        </nav>
-    </header>
     
+    <!-- Site Header -->
+    {% block site_header %}
+    {% endblock %}
+    
+    <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <ul class="flash-messages">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
                 {% for category, msg in messages %}
-                    <li class="{{ category }}">{{ msg }}</li>
+                    <div class="flash-message {{ category }}">
+                        {{ msg }}
+                    </div>
                 {% endfor %}
-            </ul>
+            </div>
         {% endif %}
     {% endwith %}
     
-    <main class="layout">
-        <div class="content-wrapper">
-            {% block content %}{% endblock %}
-        </div>
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
     </main>
+    
+    <!-- Initialize Lucide Icons -->
+    <script>
+        lucide.createIcons();
+        
+        // Toggle user menu dropdown
+        function toggleUserMenu() {
+            const menu = document.getElementById('user-menu');
+            menu.classList.toggle('hidden');
+        }
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('user-menu');
+            const button = event.target.closest('button[onclick="toggleUserMenu()"]');
+            if (!button && !menu.contains(event.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+    </script>
 </body>
 </html>

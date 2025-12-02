@@ -182,4 +182,4 @@ def signup():
 def logout():
     """Handle user logout."""
     session.clear()
-    return redirect(url_for("auth.login"))
+    return redirect(url_for("main.homepage"))

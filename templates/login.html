@@ -2,23 +2,69 @@
 
 {% block title %}Sign In{% endblock %}
 
+{% block logo_link %}
+<div class="flex items-center gap-3">
+    <!-- Rival Logo - Lion Head with Crown -->
+    <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="inline-block">
+        <circle cx="20" cy="20" r="20" fill="#059669" class="transition-all duration-200"/>
+        <path d="M12 16 L14 10 L16 12 L18 8 L19 6 L20 5 L21 6 L22 8 L24 12 L26 10 L28 16 L28 18 L12 18 Z" fill="white"/>
+        <path d="M28 18 L28 22 L26 26 L24 28 L22 30 L20 31 L18 30 L16 28 L14 26 L12 22 L12 18 L14 16 L16 18 L18 20 L19 20 L20 20 L21 20 L22 18 L24 16 L26 18 Z" fill="white"/>
+        <path d="M12 20 L10 18 L10 22 L12 24" fill="white"/>
+        <path d="M14 22 L12 20 L12 24 L14 26" fill="white"/>
+        <path d="M14 18 L12 16 L14 14 L16 16" fill="white"/>
+        <circle cx="20" cy="24" r="1.5" fill="#059669"/>
+        <path d="M26 24 L28 22 L26 20" stroke="#059669" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    </svg>
+    <a href="{{ url_for('main.homepage') }}" class="text-lg font-display font-semibold text-slate-900 hover:text-primary-600 transition-colors duration-200">
+        Rival
+    </a>
+</div>
+{% endblock %}
+
+{% block site_header %}
+{# Hide Startup Intelligence header on login page #}
+{% endblock %}
+
+{% block auth_buttons %}
+{# Hide auth buttons on login page #}
+{% endblock %}
+
 {% block content %}
-<div class="center-container">
-    <div class="panel">
-        <section class="auth-wrapper">
-            <article class="auth-card">
-                <h1>Sign in</h1>
-                <p class="subtitle">Enter your email to access your workspace.</p>
-                <form method="POST" novalidate>
-                    <div class="form-field">
-                        <label for="email">Email</label>
-                        <input id="email" class="input-control" type="email" name="email" placeholder="you@company.com" required autocomplete="email">
-                    </div>
-                    <button type="submit" class="btn">Sign in</button>
-                </form>
-                <p class="auth-footer">Don't have an account? <a href="{{ url_for('auth.signup') }}">Sign up</a>.</p>
-            </article>
-        </section>
+<div class="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-warm-50 px-4 sm:px-6 lg:px-8 -mt-16">
+    <div class="max-w-md w-full">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h1 class="font-display text-2xl font-semibold text-slate-900 mb-2">Log In</h1>
+            <p class="text-sm text-slate-600 mb-6">Enter your email to access your workspace.</p>
+            
+            <form method="POST" novalidate class="space-y-6">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                    <input 
+                        id="email" 
+                        type="email" 
+                        name="email" 
+                        placeholder="you@company.com" 
+                        required 
+                        autocomplete="email"
+                        class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-primary-600 transition-all duration-200 text-slate-900 placeholder-slate-400"
+                    >
+                </div>
+                
+                <button 
+                    type="submit" 
+                    class="w-full bg-primary-600 text-white font-medium py-2.5 px-4 rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow"
+                >
+                    Log In
+                </button>
+            </form>
+            
+            <p class="mt-6 text-center text-sm text-slate-600">
+                Don't have an account? 
+                <a href="{{ url_for('auth.signup') }}" class="font-medium text-primary-600 hover:text-primary-700 transition-colors duration-200">
+                    Sign up
+                </a>
+            </p>
+        </div>
     </div>
 </div>
 {% endblock %}

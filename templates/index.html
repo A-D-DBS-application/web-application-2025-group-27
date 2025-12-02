@@ -3,95 +3,111 @@
 {% block title %}{{ company.name if company else "Workspace" }} Workspace{% endblock %}
 
 {% block content %}
-<div class="hero-section section">
-    <div class="panel hero-panel">
-        <header class="hero">
-            <div>
-                {% if current_user %}
-                    <p class="eyebrow">Welcome back, {{ current_user.first_name }}.</p>
-                {% endif %}
-                <h1>{{ company.name if company else "Your company" }} intelligence workspace</h1>
-                <p>Simple dashboard for tracking your company and team.</p>
-            </div>
-        </header>
-    </div>
+<!-- Navigation Tabs -->
+<div class="mb-6">
+    <nav class="flex space-x-6 border-b border-slate-200">
+        <button onclick="showTab('overview')" id="tab-overview" class="tab-button pb-3 px-1 text-sm font-medium text-slate-900 border-b-2 border-slate-900">
+            Company Overview
+        </button>
+        <button onclick="showTab('competitors')" id="tab-competitors" class="tab-button pb-3 px-1 text-sm font-medium text-slate-500 border-b-2 border-transparent hover:text-slate-700">
+            Competitors
+        </button>
+    </nav>
 </div>
+
+<!-- Tab Content -->
+<div id="content-overview" class="tab-content">
 
 {% if company %}
-<div class="metrics-section section">
-    <div class="panel">
-        <section class="stats-grid" aria-label="Key metrics">
-            <article class="stat-card">
-                <span class="stat-label">Team members</span>
-                <span class="stat-value">{{ metrics.user_count }}</span>
-            </article>
-            <article class="stat-card">
-                <span class="stat-label">Industries</span>
-                <span class="stat-value">{{ metrics.industry_count }}</span>
-            </article>
-            <article class="stat-card">
-                <span class="stat-label">Competitors tracked</span>
-                <span class="stat-value">{{ metrics.competitor_count }}</span>
-            </article>
-            <article class="stat-card">
-                <span class="stat-label">Total funding</span>
-                <span class="stat-value">
-                    {% if metrics.total_funding and metrics.total_funding > 0 %}
-                        {% if metrics.total_funding >= 1000000000 %}
-                            €{{ "%.1f"|format(metrics.total_funding / 1000000000) }}B
-                        {% elif metrics.total_funding >= 1000000 %}
-                            €{{ "%.1f"|format(metrics.total_funding / 1000000) }}M
-                        {% elif metrics.total_funding >= 1000 %}
-                            €{{ "%.1f"|format(metrics.total_funding / 1000) }}K
-                        {% else %}
-                            €{{ "{:,.0f}".format(metrics.total_funding) }}
-                        {% endif %}
-                    {% else %}
-                        <span style="opacity: 0.5;">Not available</span>
-                    {% endif %}
-                </span>
-            </article>
-        </section>
-    </div>
+<!-- Welcome Section -->
+<div class="mb-6">
+    <p class="text-xl font-bold text-slate-900 mb-2">
+        Welcome back, {{ current_user.first_name }}
+    </p>
+    <p class="text-base text-slate-600">
+        Your real-time overview is ready: updated company data, tracked competitors, and the newest shifts across your market.
+    </p>
 </div>
 
-<div class="section">
-    <div class="panel">
+<!-- Company Overview Section -->
+<div class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <section>
-            <div class="section-header">
-                <h2 class="section-title">Company overview</h2>
+            <div class="mb-6">
+                <h2 class="font-display text-xl font-semibold text-slate-900">Company overview</h2>
             </div>
-            <div class="dashboard-main-grid">
-                <article class="company-card">
-                    <header>
-                        <h3>{{ company.name }}</h3>
+            
+            <!-- Metrics Section -->
+            <div class="mb-8">
+                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" aria-label="Key metrics">
+                    <article class="bg-white rounded-lg p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <span class="block text-sm font-medium text-slate-600 mb-2">Team members</span>
+                        <span class="block text-3xl font-bold text-slate-900" data-count="{{ metrics.user_count }}" data-type="number">0</span>
+                    </article>
+                    <article class="bg-white rounded-lg p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <span class="block text-sm font-medium text-slate-600 mb-2">Industries</span>
+                        <span class="block text-3xl font-bold text-slate-900" data-count="{{ metrics.industry_count }}" data-type="number">0</span>
+                    </article>
+                    <article class="bg-white rounded-lg p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <span class="block text-sm font-medium text-slate-600 mb-2">Competitors tracked</span>
+                        <span class="block text-3xl font-bold text-slate-900" data-count="{{ metrics.competitor_count }}" data-type="number">0</span>
+                    </article>
+                    <article class="bg-white rounded-lg p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <span class="block text-sm font-medium text-slate-600 mb-2">Total funding</span>
+                        {% if metrics.total_funding and metrics.total_funding > 0 %}
+                            <span class="block text-3xl font-bold text-slate-900" data-count="{{ metrics.total_funding }}" data-type="funding">€0</span>
+                        {% else %}
+                            <span class="block text-3xl font-bold text-slate-900">Not available</span>
+                        {% endif %}
+                    </article>
+                </section>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Company Card -->
+                <article class="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <header class="mb-4">
+                        <h3 class="font-display text-xl font-semibold text-slate-900 mb-2">{{ company.name }}</h3>
                         {% if company.domain %}
-                            <a class="pill" href="https://{{ company.domain }}" target="_blank">{{ company.domain }}</a>
+                            <a class="inline-block px-3 py-1 text-sm font-medium text-primary-600 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-all duration-200" href="https://{{ company.domain }}" target="_blank">
+                                {{ company.domain }}
+                            </a>
                         {% endif %}
                     </header>
                     {% if company.headline %}
-                        <p class="headline">{{ company.headline }}</p>
+                        <p class="text-slate-600 mb-4">{{ company.headline }}</p>
                     {% endif %}
-                    <ul class="meta-list">
+                    <ul class="space-y-2 mb-4">
                         {% if company.website %}
-                            <li><strong>Website:</strong> <a href="{{ company.website }}" target="_blank" rel="noopener">{{ company.website }}</a></li>
+                            <li class="text-sm text-slate-700">
+                                <strong class="text-slate-900">Website:</strong> 
+                                <a href="{{ company.website }}" target="_blank" rel="noopener" class="text-primary-600 hover:text-primary-700 transition-colors duration-200">
+                                    {{ company.website }}
+                                </a>
+                            </li>
                         {% endif %}
                         {% if company.domain %}
-                            <li><strong>Domain:</strong> {{ company.domain }}</li>
+                            <li class="text-sm text-slate-700">
+                                <strong class="text-slate-900">Domain:</strong> {{ company.domain }}
+                            </li>
                         {% endif %}
                         {% if company.number_of_employees %}
-                            <li><strong>Team size:</strong> {{ "{:,}".format(company.number_of_employees) }} employees</li>
+                            <li class="text-sm text-slate-700">
+                                <strong class="text-slate-900">Team size:</strong> {{ "{:,}".format(company.number_of_employees) }} employees
+                            </li>
                         {% endif %}
                         {% if company.country %}
-                            <li><strong>Country:</strong> {{ company.country }}</li>
+                            <li class="text-sm text-slate-700">
+                                <strong class="text-slate-900">Country:</strong> {{ company.country }}
+                            </li>
                         {% endif %}
                     </ul>
                     
                     {% if company.funding and company.funding > 0 %}
-                    <div class="stacked-block">
-                        <strong>Financial Information</strong>
-                        <ul class="meta-list">
-                            <li><strong>Total Funding:</strong> 
+                    <div class="mb-4 pt-4 border-t border-slate-200">
+                        <strong class="block text-sm font-semibold text-slate-900 mb-2">Financial Information</strong>
+                        <ul class="space-y-1">
+                            <li class="text-sm text-slate-700">
+                                <strong class="text-slate-900">Total Funding:</strong> 
                                 {% if company.funding >= 1000000000 %}
                                     €{{ "%.1f"|format(company.funding / 1000000000) }}B
                                 {% elif company.funding >= 1000000 %}
@@ -107,96 +123,127 @@
                     {% endif %}
                     
                     {% if industries %}
-                        <div class="stacked-block">
-                            <strong>Industries</strong>
-                            <ul class="pill-list">
+                        <div class="mb-4 pt-4 border-t border-slate-200">
+                            <strong class="block text-sm font-semibold text-slate-900 mb-2">Industries</strong>
+                            <div class="flex flex-wrap gap-2">
                                 {% for industry in industries %}
-                                    <li class="pill">{{ industry.name }}</li>
+                                    <span class="px-3 py-1 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg">
+                                        {{ industry.name }}
+                                    </span>
                                 {% endfor %}
-                            </ul>
+                            </div>
                         </div>
                     {% elif company.industry %}
-                        <div class="stacked-block">
-                            <strong>Industry</strong>
-                            <ul class="pill-list">
-                                <li class="pill">{{ company.industry }}</li>
-                            </ul>
+                        <div class="mb-4 pt-4 border-t border-slate-200">
+                            <strong class="block text-sm font-semibold text-slate-900 mb-2">Industry</strong>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="px-3 py-1 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg">
+                                    {{ company.industry }}
+                                </span>
+                            </div>
                         </div>
                     {% endif %}
 
                     {% if company.updated_at %}
-                        <div class="meta-info">
-                            <small>Last updated: {{ company.updated_at.strftime('%Y-%m-%d %H:%M') if company.updated_at else 'Never' }}</small>
+                        <div class="mb-4">
+                            <small class="text-xs text-slate-500">Last updated: {{ company.updated_at.strftime('%Y-%m-%d %H:%M') if company.updated_at else 'Never' }}</small>
                         </div>
                     {% endif %}
 
-                    <footer style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-                        <a href="{{ url_for('main.company_detail') }}" class="btn" style="width: 100%; text-align: center; text-decoration: none; display: block;">
+                    <footer class="mt-4 pt-4 border-t border-slate-200">
+                        <a href="{{ url_for('main.company_detail') }}" class="block w-full text-center px-4 py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow">
                             View Full Company Details →
                         </a>
                     </footer>
                 </article>
 
-                <article class="company-card">
-                    <header>
-                        <h3>Team members</h3>
+                <!-- Team Members Card -->
+                <article class="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                    <header class="mb-4">
+                        <h3 class="font-display text-xl font-semibold text-slate-900">Team members</h3>
                     </header>
                     {% if users %}
-                        <div class="card-grid small">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {% for user in users %}
-                                <article class="profile-card">
-                                    <h3>{{ user.first_name }} {{ user.last_name }}</h3>
-                                    <ul class="meta-list">
+                                <article class="bg-white rounded-lg p-4 border border-slate-200">
+                                    <h4 class="font-semibold text-slate-900 mb-2">{{ user.first_name }} {{ user.last_name }}</h4>
+                                    <ul class="space-y-1 text-sm text-slate-600">
                                         {% if user.role %}
-                                            <li><strong>Role:</strong> {{ user.role }}</li>
+                                            <li><strong class="text-slate-900">Role:</strong> {{ user.role }}</li>
                                         {% endif %}
                                         {% if user.email %}
-                                            <li><strong>Email:</strong> <a href="mailto:{{ user.email }}">{{ user.email }}</a></li>
+                                            <li>
+                                                <strong class="text-slate-900">Email:</strong> 
+                                                <a href="mailto:{{ user.email }}" class="text-primary-600 hover:text-primary-700 transition-colors duration-200">
+                                                    {{ user.email }}
+                                                </a>
+                                            </li>
                                         {% endif %}
                                     </ul>
                                 </article>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="empty-state">No team members yet.</p>
+                        <p class="text-slate-500 text-sm">No team members yet.</p>
                     {% endif %}
                 </article>
             </div>
+            
+            <!-- Last Updated -->
+            {% if company.updated_at %}
+            <div class="mt-6 pt-6 border-t border-slate-200">
+                <p class="text-sm text-slate-500">
+                    Last updated: {{ company.updated_at.strftime('%B %d, %Y at %H:%M') if company.updated_at else 'Never' }}
+                </p>
+            </div>
+            {% endif %}
         </section>
     </div>
 </div>
+{% else %}
+<p class="text-slate-500 text-center py-12">No company information available.</p>
+{% endif %}
 
-{% if competitor_view_models and metrics.competitor_count > 0 %}
-<div class="section">
-    <div class="panel">
+</div>
+
+<!-- Competitors Tab Content -->
+<div id="content-competitors" class="tab-content hidden">
+{% if company and competitor_view_models and metrics.competitor_count > 0 %}
+<div class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <section>
-            <div class="section-header">
-                <h2 class="section-title">Competitors</h2>
-                <p>{{ metrics.competitor_count }} competitor{{ 's' if metrics.competitor_count != 1 else '' }} tracked</p>
+            <div class="mb-6">
+                <h2 class="font-display text-xl font-semibold text-slate-900 mb-1">Competitors</h2>
+                <p class="text-sm text-slate-600">{{ metrics.competitor_count }} competitor{{ 's' if metrics.competitor_count != 1 else '' }} tracked</p>
             </div>
-            <div class="competitor-grid">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% for view_model in competitor_view_models %}
                     {% set link = view_model.link %}
                     {% if link and link.competitor %}
-                        <article class="company-card small competitor-card">
-                            <header>
-                                <h3>{{ link.competitor.name }}</h3>
+                        <article class="bg-slate-50 rounded-lg p-6 border border-slate-200 flex flex-col">
+                            <header class="mb-4">
+                                <h3 class="font-display text-lg font-semibold text-slate-900 mb-2">{{ link.competitor.name }}</h3>
                                 {% if link.competitor.domain %}
-                                    <a class="pill" href="https://{{ link.competitor.domain }}" target="_blank">{{ link.competitor.domain }}</a>
+                                    <a class="inline-block px-3 py-1 text-sm font-medium text-primary-600 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-all duration-200" href="https://{{ link.competitor.domain }}" target="_blank">
+                                        {{ link.competitor.domain }}
+                                    </a>
                                 {% endif %}
                             </header>
                             {% if link.competitor.headline %}
-                                <p class="headline">{{ link.competitor.headline[:100] }}{% if link.competitor.headline|length > 100 %}...{% endif %}</p>
+                                <p class="text-sm text-slate-600 mb-4 line-clamp-2">
+                                    {{ link.competitor.headline[:100] }}{% if link.competitor.headline|length > 100 %}...{% endif %}
+                                </p>
                             {% endif %}
-                            <ul class="meta-list">
+                            <ul class="space-y-2 mb-4 text-sm text-slate-700">
                                 {% if link.competitor.number_of_employees %}
-                                    <li><strong>Employees:</strong> {{ "{:,}".format(link.competitor.number_of_employees) }}</li>
+                                    <li><strong class="text-slate-900">Employees:</strong> {{ "{:,}".format(link.competitor.number_of_employees) }}</li>
                                 {% endif %}
                                 {% if link.competitor.country %}
-                                    <li><strong>Country:</strong> {{ link.competitor.country }}</li>
+                                    <li><strong class="text-slate-900">Country:</strong> {{ link.competitor.country }}</li>
                                 {% endif %}
                                 {% if link.competitor.funding and link.competitor.funding > 0 %}
-                                    <li><strong>Funding:</strong> 
+                                    <li>
+                                        <strong class="text-slate-900">Funding:</strong> 
                                         {% if link.competitor.funding >= 1000000000 %}
                                             €{{ "%.1f"|format(link.competitor.funding / 1000000000) }}B
                                         {% elif link.competitor.funding >= 1000000 %}
@@ -216,26 +263,30 @@
                                 {% endif %}
                             {% endfor %}
                             {% if has_industries %}
-                                <div class="stacked-block" style="margin-top: 0.75rem;">
-                                    <strong>Industries</strong>
-                                    <ul class="pill-list">
+                                <div class="mb-4 pt-4 border-t border-slate-200">
+                                    <strong class="block text-xs font-semibold text-slate-900 mb-2">Industries</strong>
+                                    <div class="flex flex-wrap gap-2">
                                         {% for industry_link in link.competitor.industries %}
                                             {% if industry_link.industry %}
-                                                <li class="pill">{{ industry_link.industry.name }}</li>
+                                                <span class="px-2 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg">
+                                                    {{ industry_link.industry.name }}
+                                                </span>
                                             {% endif %}
                                         {% endfor %}
-                                    </ul>
+                                    </div>
                                 </div>
                             {% elif link.competitor.industry %}
-                                <div class="stacked-block" style="margin-top: 0.75rem;">
-                                    <strong>Industry</strong>
-                                    <ul class="pill-list">
-                                        <li class="pill">{{ link.competitor.industry }}</li>
-                                    </ul>
+                                <div class="mb-4 pt-4 border-t border-slate-200">
+                                    <strong class="block text-xs font-semibold text-slate-900 mb-2">Industry</strong>
+                                    <div class="flex flex-wrap gap-2">
+                                        <span class="px-2 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg">
+                                            {{ link.competitor.industry }}
+                                        </span>
+                                    </div>
                                 </div>
                             {% endif %}
-                            <footer style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-                                <a href="{{ url_for('main.competitor_detail', competitor_id=link.competitor.id) }}" class="btn" style="width: 100%; text-align: center; text-decoration: none; display: block;">
+                            <footer class="mt-auto pt-4 border-t border-slate-200">
+                                <a href="{{ url_for('main.competitor_detail', competitor_id=link.competitor.id) }}" class="block w-full text-center px-4 py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow">
                                     View Full Details →
                                 </a>
                             </footer>
@@ -246,8 +297,106 @@
         </section>
     </div>
 </div>
-{% endif %}
 {% else %}
-<p class="empty-state">No company information available. Please contact support.</p>
+<p class="text-slate-500 text-center py-12">No competitors tracked yet.</p>
 {% endif %}
+</div>
+
+<script>
+function showTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Remove active state from all tabs
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('text-slate-900', 'border-slate-900');
+        button.classList.add('text-slate-500', 'border-transparent');
+    });
+    
+    // Show selected tab content
+    document.getElementById('content-' + tabName).classList.remove('hidden');
+    
+    // Add active state to selected tab
+    const activeButton = document.getElementById('tab-' + tabName);
+    activeButton.classList.remove('text-slate-500', 'border-transparent');
+    activeButton.classList.add('text-slate-900', 'border-slate-900');
+}
+
+// Initialize: show overview tab by default
+document.addEventListener('DOMContentLoaded', function() {
+    showTab('overview');
+    
+    // Animate counting numbers
+    function formatFunding(value) {
+        if (value >= 1000000000) {
+            return '€' + (value / 1000000000).toFixed(1) + 'B';
+        } else if (value >= 1000000) {
+            return '€' + (value / 1000000).toFixed(1) + 'M';
+        } else if (value >= 1000) {
+            return '€' + (value / 1000).toFixed(1) + 'K';
+        } else {
+            return '€' + Math.floor(value).toLocaleString();
+        }
+    }
+    
+    function animateCounter(element, target, type, delay = 0) {
+        const start = 0;
+        // Vary duration based on target value for more natural feel
+        // Smaller numbers animate faster, larger numbers take longer
+        const baseDuration = 1500;
+        const duration = baseDuration + (target * 10); // Add 10ms per unit
+        const maxDuration = 2500; // Cap at 2.5 seconds
+        const finalDuration = Math.min(duration, maxDuration);
+        
+        setTimeout(() => {
+            const startTime = performance.now();
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / finalDuration, 1);
+                
+                // Ease out cubic for smooth, natural animation
+                const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(start + (target - start) * easeOutCubic);
+                
+                if (type === 'funding') {
+                    element.textContent = formatFunding(current);
+                } else {
+                    element.textContent = current;
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    // Ensure final value is exact
+                    if (type === 'funding') {
+                        element.textContent = formatFunding(target);
+                    } else {
+                        element.textContent = target;
+                    }
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }, delay);
+    }
+    
+    // Find all counter elements
+    const counters = document.querySelectorAll('[data-count]');
+    if (counters.length > 0) {
+        // Animate with staggered delays for natural flow
+        counters.forEach((counter, index) => {
+            const target = parseInt(counter.getAttribute('data-count'));
+            const type = counter.getAttribute('data-type');
+            if (target > 0) {
+                // Stagger animations: 100ms delay between each counter
+                const delay = index * 100;
+                animateCounter(counter, target, type, delay);
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
