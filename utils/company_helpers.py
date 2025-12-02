@@ -23,12 +23,18 @@ def enrich_company_if_needed(company: Company, domain: Optional[str] = None) -> 
             link_company_industries(company, api_data.get("industries", []))
 
 
+DEFAULT_LANDSCAPE = "Competitive landscape analysis is being prepared. This section will provide insights into market positioning, competitive pressures, and strategic considerations based on available company and competitor data."
+
 def generate_landscape_if_needed(company: Company) -> None:
-    if not company or company.competitive_landscape: return
+    if not company: return
+    if company.competitive_landscape and company.competitive_landscape.strip(): return
     competitors = get_company_competitors(company)
     if competitors:
         try:
             landscape = generate_competitive_landscape(company, competitors)
-            if landscape: company.competitive_landscape = landscape
+            company.competitive_landscape = landscape if landscape else DEFAULT_LANDSCAPE
         except Exception:
+            company.competitive_landscape = DEFAULT_LANDSCAPE
             db.session.rollback()
+    else:
+        company.competitive_landscape = DEFAULT_LANDSCAPE

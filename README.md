@@ -17,20 +17,99 @@ Simplified Flask MVP for startup intelligence tracking. This implementation focu
 - `utils/auth.py` – Authentication/session utilities (login, current user/company, decorators)
 - `utils/company_helpers.py` – Helper functions for company enrichment and landscape generation
 
-### Database Schema (Simplified)
+### Database Schema
 
-High‑level relationships:
+#### Entity Relationship Diagram
 
 ```
-user ──► company ──► company_competitor ──► company
-             └────► company_industry ──► industries
+┌─────────────┐
+│    User     │
+├─────────────┤
+│ id (PK)     │
+│ email       │──┐
+│ first_name  │  │
+│ last_name   │  │
+│ company_id  │──┼──┐
+│ role        │  │  │
+│ is_active   │  │  │
+└─────────────┘  │  │
+                 │  │
+                 │  │
+┌────────────────┴──┴──┐
+│      Company         │
+├──────────────────────┤
+│ id (PK)              │
+│ name                 │
+│ domain               │
+│ website              │
+│ headline             │
+│ number_of_employees  │
+│ funding              │
+│ industry (legacy)    │
+│ country              │
+│ updated_at           │
+│ competitive_landscape│
+└──────────────────────┘
+         │
+         ├──────────────────┐
+         │                  │
+         ▼                  ▼
+┌──────────────────┐  ┌──────────────────────┐
+│ CompanyIndustry  │  │ CompanyCompetitor    │
+├──────────────────┤  ├──────────────────────┤
+│ company_id (PK)  │  │ company_id (PK)      │
+│ industry_id (PK) │  │ competitor_id (PK)   │
+└──────────────────┘  └──────────────────────┘
+         │                        │
+         ▼                        ▼
+┌─────────────┐          ┌─────────────┐
+│  Industry   │          │  Company    │
+├─────────────┤          │ (competitor)│
+│ id (PK)     │          │             │
+│ name        │          └─────────────┘
+│ description │
+└─────────────┘
 ```
 
-- **User**: email, first/last name, company_id, role, is_active
-- **Company**: name, domain, website, headline, number_of_employees, funding, industry, country, updated_at, competitive_landscape
-- **Industry**: canonical industry names
-- **CompanyIndustry**: many‑to‑many bridge between companies and industries
-- **CompanyCompetitor**: simple competitor relationships between companies
+#### Table Definitions
+
+**`user`**
+- `id` (UUID, PK) - Unique user identifier
+- `email` (VARCHAR(255), UNIQUE, INDEX) - User email address
+- `first_name` (VARCHAR(255)) - User's first name
+- `last_name` (VARCHAR(255)) - User's last name
+- `company_id` (UUID, FK → `company.id`) - Reference to user's company
+- `role` (VARCHAR(255)) - User's role (optional)
+- `is_active` (BOOLEAN, DEFAULT true) - Whether the user account is active
+
+**`company`**
+- `id` (UUID, PK) - Unique company identifier
+- `name` (VARCHAR(255), UNIQUE) - Company name
+- `domain` (VARCHAR(255), INDEX) - Company domain (e.g., "nike.com")
+- `website` (VARCHAR(500)) - Full website URL
+- `headline` (TEXT) - Company description/headline
+- `number_of_employees` (INTEGER) - Employee count
+- `funding` (BIGINT) - Total funding amount in cents
+- `industry` (VARCHAR(255)) - Legacy single industry field (kept for compatibility)
+- `country` (VARCHAR(255)) - Company country
+- `updated_at` (DATETIME) - Last update timestamp from API
+- `competitive_landscape` (TEXT) - AI-generated competitive landscape summary
+
+**`industries`**
+- `id` (UUID, PK) - Unique industry identifier
+- `name` (VARCHAR(255), UNIQUE) - Canonical industry name
+- `description` (TEXT) - Industry description (optional)
+
+**`company_industry`** (Many-to-Many Bridge)
+- `company_id` (UUID, PK, FK → `company.id`, CASCADE DELETE)
+- `industry_id` (UUID, PK, FK → `industries.id`, CASCADE DELETE)
+- Composite primary key ensures one company can have multiple industries
+
+**`company_competitor`** (Competitor Relationships)
+- `company_id` (UUID, PK, FK → `company.id`, CASCADE DELETE)
+- `competitor_id` (UUID, PK, FK → `company.id`, CASCADE DELETE)
+- Composite primary key links companies as competitors
+- Both IDs reference the `company` table (self-referential relationship)
 
 ### Running Locally
 
@@ -131,7 +210,7 @@ See:
 
 ### AI-Powered Competitive Landscape Analysis
 
-The system can automatically generate competitive landscape summaries using OpenAI's GPT-4o-mini model. This feature is available when an `OPENAI_API_KEY` is configured.
+The system automatically generates competitive landscape summaries for companies. This feature uses OpenAI's GPT-4o-mini model when an `OPENAI_API_KEY` is configured, or falls back to a default placeholder text when the API is unavailable.
 
 **How it works:**
 - When viewing a company detail page (`/company` or `/competitor/<id>`), the system checks if a competitive landscape summary exists
@@ -145,9 +224,16 @@ The system can automatically generate competitive landscape summaries using Open
   - Strategic considerations and risks
 - The summary is cached in the `competitive_landscape` field to avoid repeated API calls
 
-**Note:**  
-- If no OpenAI API key is set, the feature is silently disabled and no landscape summaries are generated
-- Landscape generation only occurs when competitors are available for analysis
+**API Configuration:**
+- **With OpenAI API key**: Generates AI-powered landscape summaries using GPT-4o-mini
+- **Without API key**: Uses a default placeholder text explaining that landscape analysis is being prepared
+- **No competitors**: Uses default text when no competitors are available for analysis
+
+**Testing:**
+Use the `tools/generate_landscape.py` script to test landscape generation with full logging:
+```bash
+python tools/generate_landscape.py "Company Name"
+```
 
 ### Core Algorithm
 
