@@ -3,7 +3,9 @@
 import uuid
 from functools import wraps
 from typing import Optional
+
 from flask import flash, g, redirect, request, session, url_for
+
 from app import db
 from models import Company, User
 
@@ -38,7 +40,7 @@ def get_current_user() -> Optional[User]:
         g.current_user = None
         g.current_company = None
     
-    return user
+    return None
 
 
 def require_login(view_func):
@@ -51,5 +53,4 @@ def require_login(view_func):
             return redirect(url_for("auth.login", next=request.path))
         return view_func(*args, **kwargs)
     return wrapper
-
 

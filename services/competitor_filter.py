@@ -4,7 +4,7 @@ Filters out internal brands, subsidiaries, product names, and same-company domai
 from competitor lists returned by the API.
 """
 
-from typing import List, Dict
+from typing import Dict, List
 
 
 def extract_root(domain: str) -> str:
@@ -27,29 +27,6 @@ def extract_root(domain: str) -> str:
     if len(parts) >= 2:
         return ".".join(parts[-2:])
     return domain.lower()
-
-
-def is_product_like(api_data: dict) -> bool:
-    """Check if competitor looks like a product/service rather than a company.
-    
-    Simple heuristic: if no employees AND no country, likely a product.
-    Only checks if both fields are available and empty.
-    
-    Args:
-        api_data: Dictionary with competitor data from API
-        
-    Returns:
-        True if looks like a product, False otherwise
-    """
-    employees = api_data.get("employees")
-    country = api_data.get("country")
-    
-    # Only filter if both are explicitly missing (None or empty)
-    # If fields are not in dict at all, don't filter (assume valid company)
-    if "employees" in api_data and "country" in api_data:
-        if not employees and not country:
-            return True
-    return False
 
 
 def filter_competitors(base_name: str, base_domain: str, competitors: List[Dict]) -> List[Dict]:
@@ -102,7 +79,9 @@ def filter_competitors(base_name: str, base_domain: str, competitors: List[Dict]
             continue
         
         # Rule 5: product/service detection (no employees AND no country)
-        if is_product_like(comp):
+        employees = comp.get("employees")
+        country = comp.get("country")
+        if "employees" in comp and "country" in comp and not employees and not country:
             continue
 
         filtered.append(comp)

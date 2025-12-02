@@ -1,18 +1,9 @@
-"""Main application routes - simplified for MVP."""
-
-import traceback
 import uuid
 from flask import Blueprint, g, render_template, redirect, url_for, flash
 from app import db
-from models import User, Company, CompanyCompetitor
+from models import User, CompanyCompetitor
 from utils.auth import require_login
-from services.company_api import (
-    fetch_company_info, 
-    apply_company_data,
-    needs_api_fetch,
-    link_company_industries
-)
-from services.competitive_landscape import generate_competitive_landscape
+from utils.company_helpers import get_company_industries, get_company_competitors, enrich_company_if_needed, generate_landscape_if_needed
 
 main_bp = Blueprint("main", __name__)
 
@@ -20,181 +11,69 @@ main_bp = Blueprint("main", __name__)
 @main_bp.route("/", methods=["GET"])
 def homepage():
     """Display landing page for non-logged-in users, main dashboard for logged-in users."""
-    # Show landing page if user is not logged in
     if not getattr(g, "current_user", None):
         return render_template("landing.html")
     
-    # Show dashboard for logged-in users
-    try:
-        company = g.current_company
-        
-        if not company:
-            return render_template("index.html", company=None, users=[], metrics={})
-        
-        team_members = db.session.query(User).filter(
-            User.company_id == company.id,
-            User.is_active == True
-        ).order_by(User.last_name.asc(), User.first_name.asc()).all()
-        
-        competitor_count = len(company.competitors) if company.competitors else 0
-        industries = [link.industry for link in company.industries if link and link.industry] if company.industries else []
-        
-        competitor_view_models = []
-        data_fetched = False
-        competitors_list = list(company.competitors) if company.competitors else []
-        for link in competitors_list:
-            if link and link.competitor:
-                competitor = link.competitor
-                
-                # Fetch competitor data from API if employee count is missing and domain exists
-                try:
-                    if not competitor.number_of_employees and competitor.domain and needs_api_fetch(competitor, competitor.domain):
-                        api_data = fetch_company_info(domain=competitor.domain)
-                        if api_data:
-                            apply_company_data(competitor, api_data)
-                            link_company_industries(competitor, api_data.get("industries", []))
-                            db.session.flush()
-                            data_fetched = True
-                except Exception:
-                    # If API fetch fails, continue without it - don't crash the page
-                    db.session.rollback()
-                
-                competitor_view_models.append({
-                    "company": competitor,
-                    "link": link,
-                })
-        
-        # Commit any API-fetched data
-        if data_fetched:
-            try:
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-        
-        metrics = {
-            "user_count": len(team_members),
-            "competitor_count": competitor_count,
-            "industry_count": len(industries),
-            "total_funding": company.funding or 0,
-        }
-        
-        return render_template(
-            "index.html",
-            company=company,
-            users=team_members,
-            industries=industries,
-            metrics=metrics,
-            competitor_view_models=competitor_view_models,
-        )
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error loading homepage: {str(e)}", "error")
-        return f"Error: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
+    company = g.current_company
+    if not company:
+        return render_template("index.html", company=None, users=[], metrics={})
+    
+    team_members = db.session.query(User).filter(User.company_id == company.id, User.is_active == True).order_by(User.last_name.asc(), User.first_name.asc()).all()
+    
+    competitor_view_models = []
+    for link in company.competitors:
+        if link and link.competitor:
+            comp = link.competitor
+            if not comp.number_of_employees and comp.domain:
+                try: enrich_company_if_needed(comp, comp.domain)
+                except Exception: pass
+            competitor_view_models.append({"company": comp, "link": link})
+    
+    try: db.session.commit()
+    except Exception: db.session.rollback()
+    
+    return render_template("index.html", company=company, users=team_members, industries=get_company_industries(company),
+        metrics={"user_count": len(team_members), "competitor_count": len(get_company_competitors(company)),
+                 "industry_count": len(get_company_industries(company)), "total_funding": company.funding or 0},
+        competitor_view_models=competitor_view_models)
 
 
 @main_bp.route("/company", methods=["GET"])
 @require_login
 def company_detail():
-    """Display detailed information about the user's own company.
-    
-    Uses the same template as competitor detail but for own company.
-    """
     company = g.current_company
-    
     if not company:
         flash("Company not found.", "error")
         return redirect(url_for("main.homepage"))
     
-    if company.domain and needs_api_fetch(company, company.domain):
-        api_data = fetch_company_info(domain=company.domain)
-        if api_data:
-            apply_company_data(company, api_data)
-            link_company_industries(company, api_data.get("industries", []))
-            db.session.commit()
-    
-    industries = [link.industry for link in company.industries if link and link.industry]
-    
-    # Generate competitive landscape if not already generated
-    if not company.competitive_landscape:
-        competitors = [link.competitor for link in company.competitors if link and link.competitor]
-        if competitors:
-            try:
-                landscape = generate_competitive_landscape(company, competitors)
-                if landscape:
-                    company.competitive_landscape = landscape
-                    db.session.commit()
-                    db.session.refresh(company)
-            except Exception:
-                db.session.rollback()
-    
-    return render_template(
-        "company_detail.html",
-        company_obj=company,
-        industries=industries,
-        is_competitor=False,
-    )
+    enrich_company_if_needed(company)
+    generate_landscape_if_needed(company)
+    db.session.commit()
+    return render_template("company_detail.html", company_obj=company, industries=get_company_industries(company), is_competitor=False)
 
 
 @main_bp.route("/competitor/<competitor_id>", methods=["GET"])
 @require_login
 def competitor_detail(competitor_id):
-    """Display detailed information about a competitor company.
-    
-    Fetches full company data from API if domain is available and data is missing.
-    This is a separate page from the company's own dashboard.
-    """
     company = g.current_company
-    
     if not company:
         flash("Company not found.", "error")
         return redirect(url_for("main.homepage"))
     
-    try:
-        competitor_uuid = uuid.UUID(competitor_id)
+    try: competitor_uuid = uuid.UUID(competitor_id)
     except (TypeError, ValueError):
         flash("Invalid competitor ID.", "error")
         return redirect(url_for("main.homepage"))
     
-    competitor_link = db.session.query(CompanyCompetitor).filter(
-        CompanyCompetitor.company_id == company.id,
-        CompanyCompetitor.competitor_id == competitor_uuid
-    ).first()
-    
-    if not competitor_link or not competitor_link.competitor:
+    link = db.session.query(CompanyCompetitor).filter(CompanyCompetitor.company_id == company.id, CompanyCompetitor.competitor_id == competitor_uuid).first()
+    if not link or not link.competitor:
         flash("Competitor not found.", "error")
         return redirect(url_for("main.homepage"))
     
-    competitor = competitor_link.competitor
-    
-    # Fetch full company data from API if needed
-    if competitor.domain and needs_api_fetch(competitor, competitor.domain):
-        api_data = fetch_company_info(domain=competitor.domain)
-        if api_data:
-            apply_company_data(competitor, api_data)
-            link_company_industries(competitor, api_data.get("industries", []))
-            db.session.commit()
-    
-    competitor_industries = [link.industry for link in competitor.industries if link and link.industry]
-    
-    # Generate competitive landscape for competitor if not already generated
-    if not competitor.competitive_landscape:
-        competitor_competitors = [link.competitor for link in competitor.competitors if link and link.competitor]
-        if competitor_competitors:
-            try:
-                landscape = generate_competitive_landscape(competitor, competitor_competitors)
-                if landscape:
-                    competitor.competitive_landscape = landscape
-                    db.session.commit()
-                    db.session.refresh(competitor)
-            except Exception:
-                db.session.rollback()
-    
-    return render_template(
-        "company_detail.html",
-        company_obj=competitor,
-        industries=competitor_industries,
-        is_competitor=True,
-    )
+    enrich_company_if_needed(link.competitor)
+    generate_landscape_if_needed(link.competitor)
+    db.session.commit()
+    return render_template("company_detail.html", company_obj=link.competitor, industries=get_company_industries(link.competitor), is_competitor=True)
 
 
 @main_bp.route("/about", methods=["GET"])
@@ -214,5 +93,4 @@ def about():
 
 @main_bp.route("/health", methods=["GET"])
 def health():
-    """Health check endpoint."""
     return "OK", 200

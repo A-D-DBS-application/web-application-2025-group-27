@@ -1,7 +1,9 @@
 """Simplified database models for MVP."""
 
 import uuid
+
 from sqlalchemy.dialects.postgresql import UUID
+
 from app import db
 
 

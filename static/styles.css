@@ -360,11 +360,6 @@ p {
     color: var(--text-secondary);
 }
 
-.detail-footer {
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
 /* Two-column company/competitor layout */
 .company-layout {
     display: grid;
@@ -436,38 +431,20 @@ p {
 }
 
 .competitor-card {
-    transition: all 0.15s ease;
     box-shadow:
         0 4px 12px rgba(0, 0, 0, 0.28),
         0 1px 0 rgba(255, 255, 255, 0.03) inset;
+    transition: all 0.15s ease;
 }
 
 .competitor-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
     border-color: var(--accent-blue);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
 }
 
 .competitor-card:active {
     transform: translateY(0) scale(0.99);
-}
-
-.list-table {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: grid;
-    gap: 8px;
-}
-
-.list-table li {
-    background: #26282b;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-color);
-    padding: 10px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
 }
 
 /* Buttons */
@@ -476,14 +453,14 @@ p {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    background: #3b3dff22;
-    border: 1px solid var(--accent-blue);
-    color: var(--accent-blue);
     padding: 8px 16px;
+    border: 1px solid var(--accent-blue);
     border-radius: var(--radius-sm);
-    cursor: pointer;
+    background: #3b3dff22;
+    color: var(--accent-blue);
     font-size: 14px;
     font-weight: 500;
+    cursor: pointer;
     transition: all var(--transition-fast);
 }
 
@@ -499,11 +476,11 @@ p {
 /* Forms */
 input,
 select {
-    background: #202225;
+    width: 100%;
+    padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    padding: 10px;
-    width: 100%;
+    background: #202225;
     color: var(--text-primary);
 }
 
@@ -515,11 +492,11 @@ select:focus {
 }
 
 .input-control {
-    background: #202225;
+    width: 100%;
+    padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    padding: 10px;
-    width: 100%;
+    background: #202225;
     color: var(--text-primary);
 }
 
@@ -579,31 +556,6 @@ select:focus {
 .subtitle {
     color: var(--text-secondary);
     margin-bottom: 20px;
-}
-
-/* Tables */
-.table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.table tr {
-    background: var(--bg-panel);
-    border-bottom: 1px solid #2f3133;
-}
-
-.table tr:hover {
-    background: var(--bg-hover);
-}
-
-.table th,
-.table td {
-    padding: 12px;
-    color: var(--text-secondary);
-}
-
-.table th {
-    color: var(--text-primary);
 }
 
 /* Empty state */

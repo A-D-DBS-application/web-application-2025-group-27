@@ -8,14 +8,15 @@ API Endpoint: GET https://api.companyenrich.com/companies/enrich?domain=example.
 Similar Companies: POST https://api.companyenrich.com/companies/similar
 """
 
-import os
 import json
+import os
 import re
-import urllib.request
-import urllib.parse
 import urllib.error
-from typing import Optional, Dict, List
+import urllib.parse
+import urllib.request
 from datetime import datetime
+from typing import Dict, List, Optional
+
 from app import db
 from models import Industry, CompanyIndustry
 
@@ -25,16 +26,12 @@ from models import Industry, CompanyIndustry
 def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
     """Fetch company data from the CompanyEnrich API.
     
-    Returns:
-        - None if the domain is missing or invalid.
-        - A dict with normalized company data if API succeeds.
-        - A dict with mostly None values if API fails (via _empty_api_response).
-    
-    This dict should be passed to `apply_company_data` and
-    `link_company_industries`.
-    
     Args:
         domain: Company domain (e.g., 'example.com')
+    
+    Returns:
+        None if domain is missing or invalid, otherwise dict with normalized company data.
+        Dict should be passed to `apply_company_data` and `link_company_industries`.
     """
     if not domain:
         return None
@@ -47,7 +44,8 @@ def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
     api_key = os.getenv("COMPANY_ENRICH_API_KEY")
     
     if not api_key or api_key == "your-api-key-here":
-        return _empty_api_response(domain)
+        return {"domain": domain, "name": None, "description": None, "employees": None,
+                "industry": None, "country": None, "funding": None, "industries": []}
     
     url = f"https://api.companyenrich.com/companies/enrich?domain={urllib.parse.quote(domain)}"
     
@@ -78,7 +76,7 @@ def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
                     "website": data.get("website"),
                     "description": data.get("description") or data.get("headline"),
                     "employees": employees_num,
-                    "industry": data.get("industry") or (data.get("industries", [None])[0] if isinstance(data.get("industries"), list) and data.get("industries") else None),
+                    "industry": data.get("industry") or (data.get("industries")[0] if data.get("industries") else None),
                     "country": country_str,
                     "funding": financial.get("total_funding") or data.get("funding"),
                     "updated_at": updated_at,
@@ -87,12 +85,15 @@ def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
                 
                 return result
             else:
-                return _empty_api_response(domain)
+                return {"domain": domain, "name": None, "description": None, "employees": None,
+                        "industry": None, "country": None, "funding": None, "industries": []}
                 
     except urllib.error.HTTPError:
-        return _empty_api_response(domain)
+        return {"domain": domain, "name": None, "description": None, "employees": None,
+                "industry": None, "country": None, "funding": None, "industries": []}
     except Exception:
-        return _empty_api_response(domain)
+        return {"domain": domain, "name": None, "description": None, "employees": None,
+                "industry": None, "country": None, "funding": None, "industries": []}
 
 
 def _clean_domain(domain: str) -> str:
@@ -100,7 +101,7 @@ def _clean_domain(domain: str) -> str:
     if not domain:
         return ""
     domain = domain.lower().strip()
-    if domain.startswith('www.'):
+    if domain.startswith("www."):
         domain = domain[4:]
     return domain
 
@@ -264,13 +265,13 @@ def _parse_employees(data: Dict) -> Optional[int]:
     if isinstance(employees_value, (int, float)):
         return int(employees_value)
     elif isinstance(employees_value, str):
-        numbers = re.findall(r'\d+', employees_value.replace(',', ''))
+        numbers = re.findall(r"\d+", employees_value.replace(",", ""))
         if numbers:
             num = int(numbers[0])
             if "k" in employees_value.lower():
                 return num * 1000
             return num
-    
+
     return None
 
 
@@ -290,20 +291,6 @@ def _parse_country(data: Dict) -> Optional[str]:
     return None
 
 
-def _empty_api_response(domain: str) -> Dict:
-    """Return empty API response structure."""
-    return {
-        "domain": domain,
-        "name": None,
-        "description": None,
-        "employees": None,
-        "industry": None,
-        "country": None,
-        "funding": None,
-        "industries": [],
-    }
-
-
 def link_company_industries(company, industries_list: List[str]) -> None:
     """Link company to industries from API data.
     
@@ -313,7 +300,7 @@ def link_company_industries(company, industries_list: List[str]) -> None:
     """
     if not company or not industries_list:
         return
-    
+
     for industry_name in industries_list:
         parsed_name = industry_name.split("/")[-1].strip() if "/" in industry_name else industry_name.strip()
         industry = db.session.query(Industry).filter(Industry.name == parsed_name).first()
@@ -321,7 +308,7 @@ def link_company_industries(company, industries_list: List[str]) -> None:
             industry = Industry(name=parsed_name)
             db.session.add(industry)
             db.session.flush()
-        
+
         existing_link = db.session.query(CompanyIndustry).filter(
             CompanyIndustry.company_id == company.id,
             CompanyIndustry.industry_id == industry.id

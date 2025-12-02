@@ -6,6 +6,7 @@ using OpenAI API based on company data and competitor information.
 
 import os
 from typing import List, Optional
+
 from models import Company
 
 # Lazy initialization of OpenAI client
@@ -53,9 +54,8 @@ def generate_competitive_landscape(company: Company, competitors: List[Company])
     competitor_names = [c.name for c in competitors if c and c.name]
     
     # Extract industry names
-    industries = []
-    if company.industries:
-        industries = [link.industry.name for link in company.industries if link and link.industry and link.industry.name]
+    from utils.company_helpers import get_company_industries
+    industries = [ind.name for ind in get_company_industries(company) if ind and ind.name]
     
     # Use headline as description (company.description doesn't exist in model)
     company_description = company.headline or ""
