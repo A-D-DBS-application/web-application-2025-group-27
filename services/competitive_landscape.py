@@ -1,20 +1,11 @@
-"""AI-powered competitive landscape generation service.
-
-Generates short, analytical summaries of a company's competitive position
-using OpenAI API based on company data and competitor information.
-"""
-
 import os
 from typing import List, Optional
-
 from models import Company
 
-# Lazy initialization of OpenAI client
 _client = None
 
 
 def _get_openai_client():
-    """Get or create OpenAI client instance (lazy initialization)."""
     global _client
     if _client is None:
         api_key = os.getenv("OPENAI_API_KEY")
@@ -23,7 +14,6 @@ def _get_openai_client():
                 from openai import OpenAI
                 _client = OpenAI(api_key=api_key)
             except Exception:
-                # If OpenAI initialization fails, keep _client as None
                 _client = False
         else:
             _client = False
@@ -31,42 +21,19 @@ def _get_openai_client():
 
 
 def generate_competitive_landscape(company: Company, competitors: List[Company]) -> Optional[str]:
-    """Generate a competitive landscape summary using AI.
-    
-    Creates a 5-7 sentence analytical summary explaining:
-    - Market position
-    - Competitive pressures
-    - Differentiation factors
-    - Strategic considerations
-    
-    Args:
-        company: Company model instance
-        competitors: List of competitor Company instances
-        
-    Returns:
-        Generated landscape text or None if API fails/unavailable
-    """
     client = _get_openai_client()
-    if not client or not company or not competitors:
-        return None
+    if not client or not company or not competitors: return None
     
-    # Extract competitor names
     competitor_names = [c.name for c in competitors if c and c.name]
-    
-    # Extract industry names
     from utils.company_helpers import get_company_industries
     industries = [ind.name for ind in get_company_industries(company) if ind and ind.name]
     
-    # Use headline as description (company.description doesn't exist in model)
-    company_description = company.headline or ""
-    
-    # Build prompt
     prompt = f"""Generate a short, factual competitive landscape summary for the company '{company.name}'.
 
 Base your answer ONLY on the data below.
 
 Company description:
-{company_description}
+{company.headline or ""}
 
 Industries:
 {", ".join(industries) if industries else "Not specified"}
@@ -84,17 +51,12 @@ Please produce 5–7 sentences explaining:
 Keep the tone: clear, analytical, crisp, and business-focused."""
 
     try:
-        response = client.chat.completions.create(
+        resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=300
         )
-        
-        if response.choices and len(response.choices) > 0:
-            return response.choices[0].message.content.strip()
-        return None
+        return resp.choices[0].message.content.strip() if resp.choices else None
     except Exception:
-        # Silently fail - don't break the app if AI is unavailable
         return None
-
