@@ -160,3 +160,30 @@
     </script>
 </body>
 </html>
+
+{# Template macros for reusable patterns #}
+{% macro format_funding(funding_amount) %}
+    {% if funding_amount and funding_amount > 0 %}
+        {% if funding_amount >= 1000000000 %}
+            €{{ "%.1f"|format(funding_amount / 1000000000) }}B
+        {% elif funding_amount >= 1000000 %}
+            €{{ "%.1f"|format(funding_amount / 1000000) }}M
+        {% elif funding_amount >= 1000 %}
+            €{{ "%.1f"|format(funding_amount / 1000) }}K
+        {% else %}
+            €{{ "{:,.0f}".format(funding_amount) }}
+        {% endif %}
+    {% else %}
+        <span class="text-muted">Not available</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro display_industries(industries, company_industry) %}
+    {% if industries %}
+        {% for industry in industries %}
+            <li class="pill">{{ industry.name }}</li>
+        {% endfor %}
+    {% elif company_industry %}
+        <li class="pill">{{ company_industry }}</li>
+    {% endif %}
+{% endmacro %}

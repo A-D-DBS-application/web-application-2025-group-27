@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "base.html" import format_funding, display_industries %}
 
 {% block title %}{{ company.name if company else "Workspace" }} Workspace{% endblock %}
 
@@ -36,19 +37,7 @@
             <article class="stat-card">
                 <span class="stat-label">Total funding</span>
                 <span class="stat-value">
-                    {% if metrics.total_funding and metrics.total_funding > 0 %}
-                        {% if metrics.total_funding >= 1000000000 %}
-                            €{{ "%.1f"|format(metrics.total_funding / 1000000000) }}B
-                        {% elif metrics.total_funding >= 1000000 %}
-                            €{{ "%.1f"|format(metrics.total_funding / 1000000) }}M
-                        {% elif metrics.total_funding >= 1000 %}
-                            €{{ "%.1f"|format(metrics.total_funding / 1000) }}K
-                        {% else %}
-                            €{{ "{:,.0f}".format(metrics.total_funding) }}
-                        {% endif %}
-                    {% else %}
-                        <span class="text-muted">Not available</span>
-                    {% endif %}
+                    {{ format_funding(metrics.total_funding) }}
                 </span>
             </article>
         </section>
@@ -91,35 +80,16 @@
                     <div class="stacked-block">
                         <strong>Financial Information</strong>
                         <ul class="meta-list">
-                            <li><strong>Total Funding:</strong> 
-                                {% if company.funding >= 1000000000 %}
-                                    €{{ "%.1f"|format(company.funding / 1000000000) }}B
-                                {% elif company.funding >= 1000000 %}
-                                    €{{ "%.1f"|format(company.funding / 1000000) }}M
-                                {% elif company.funding >= 1000 %}
-                                    €{{ "%.1f"|format(company.funding / 1000) }}K
-                                {% else %}
-                                    €{{ "{:,.0f}".format(company.funding) }}
-                                {% endif %}
-                            </li>
+                            <li><strong>Total Funding:</strong> {{ format_funding(company.funding) }}</li>
                         </ul>
                     </div>
                     {% endif %}
                     
-                    {% if industries %}
+                    {% if industries or company.industry %}
                         <div class="stacked-block">
                             <strong>Industries</strong>
                             <ul class="pill-list">
-                                {% for industry in industries %}
-                                    <li class="pill">{{ industry.name }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% elif company.industry %}
-                        <div class="stacked-block">
-                            <strong>Industry</strong>
-                            <ul class="pill-list">
-                                <li class="pill">{{ company.industry }}</li>
+                                {{ display_industries(industries, company.industry) }}
                             </ul>
                         </div>
                     {% endif %}
@@ -196,41 +166,20 @@
                                     <li><strong>Country:</strong> {{ link.competitor.country }}</li>
                                 {% endif %}
                                 {% if link.competitor.funding and link.competitor.funding > 0 %}
-                                    <li><strong>Funding:</strong> 
-                                        {% if link.competitor.funding >= 1000000000 %}
-                                            €{{ "%.1f"|format(link.competitor.funding / 1000000000) }}B
-                                        {% elif link.competitor.funding >= 1000000 %}
-                                            €{{ "%.1f"|format(link.competitor.funding / 1000000) }}M
-                                        {% elif link.competitor.funding >= 1000 %}
-                                            €{{ "%.1f"|format(link.competitor.funding / 1000) }}K
-                                        {% else %}
-                                            €{{ "{:,.0f}".format(link.competitor.funding) }}
-                                        {% endif %}
-                                    </li>
+                                    <li><strong>Funding:</strong> {{ format_funding(link.competitor.funding) }}</li>
                                 {% endif %}
                             </ul>
-                            {% set has_industries = false %}
+                            {% set competitor_industries = [] %}
                             {% for industry_link in link.competitor.industries %}
                                 {% if industry_link.industry %}
-                                    {% set has_industries = true %}
+                                    {% set _ = competitor_industries.append(industry_link.industry) %}
                                 {% endif %}
                             {% endfor %}
-                            {% if has_industries %}
+                            {% if competitor_industries or link.competitor.industry %}
                                 <div class="stacked-block stacked-block-spacing">
                                     <strong>Industries</strong>
                                     <ul class="pill-list">
-                                        {% for industry_link in link.competitor.industries %}
-                                            {% if industry_link.industry %}
-                                                <li class="pill">{{ industry_link.industry.name }}</li>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            {% elif link.competitor.industry %}
-                                <div class="stacked-block stacked-block-spacing">
-                                    <strong>Industry</strong>
-                                    <ul class="pill-list">
-                                        <li class="pill">{{ link.competitor.industry }}</li>
+                                        {{ display_industries(competitor_industries, link.competitor.industry) }}
                                     </ul>
                                 </div>
                             {% endif %}

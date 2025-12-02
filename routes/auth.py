@@ -1,19 +1,14 @@
 """Simplified authentication routes for MVP."""
 
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
-from sqlalchemy import func
+from sqlalchemy import func, or_
+
 from app import db
 from models import Company, User, CompanyCompetitor
-from utils.auth import login_user
-from services.company_api import (
-    fetch_company_info, 
-    apply_company_data, 
-    fetch_similar_companies,
-    needs_api_fetch,
-    link_company_industries
-)
+from services.company_api import fetch_similar_companies
 from services.competitor_filter import filter_competitors
-from services.competitive_landscape import generate_competitive_landscape
+from utils.auth import login_user
+from utils.company_helpers import enrich_company_if_needed, generate_landscape_if_needed, get_company_competitors
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -64,21 +59,21 @@ def signup():
     company_name = request.form.get("company_name", "").strip()
     company_domain = request.form.get("company_domain", "").strip().lower()
     
-    errors = []
-    if not first_name:
-        errors.append("First name is required.")
-    if not last_name:
-        errors.append("Last name is required.")
-    if not email:
-        errors.append("Email is required.")
-    if not company_name:
-        errors.append("Company name is required.")
-    if not company_domain:
-        errors.append("Company domain is required.")
+    # Validate required fields
+    required = {
+        "first_name": "First name",
+        "last_name": "Last name",
+        "email": "Email",
+        "company_name": "Company name",
+        "company_domain": "Company domain"
+    }
+    errors = [f"{label} is required." for field, label in required.items()
+              if not request.form.get(field, "").strip()]
     
-    existing_user = db.session.query(User).filter(func.lower(User.email) == email).first()
-    if existing_user:
-        errors.append("Email already exists. Please log in instead.")
+    if not errors:
+        existing_user = db.session.query(User).filter(func.lower(User.email) == email).first()
+        if existing_user:
+            errors.append("Email already exists. Please log in instead.")
     
     if errors:
         for error in errors:
@@ -91,88 +86,66 @@ def signup():
         company.name = company_name
         company.domain = company_domain
         db.session.add(company)
-        db.session.flush()
+        db.session.flush()  # Need ID for competitor linking
     
-    if company_domain and needs_api_fetch(company, company_domain):
-        api_data = fetch_company_info(domain=company_domain)
-        if api_data:
-            apply_company_data(company, api_data)
-            link_company_industries(company, api_data.get("industries", []))
-            db.session.flush()
-            
-            # Request more competitors to account for filtering
-            # Filter may remove 30-50% due to same-domain, subsidiaries, etc.
-            # Request 10 to balance cost (50 credits) with getting ~5 after filtering
-            raw_competitors = fetch_similar_companies(domain=company_domain, limit=10)
-            filtered_competitors = filter_competitors(company_name, company_domain, raw_competitors)
-            # Limit to 5 competitors to keep consistent behavior
-            filtered_competitors = filtered_competitors[:5]
-            if filtered_competitors:
-                for competitor_data in filtered_competitors:
-                    competitor_domain = competitor_data.get("domain")
-                    competitor_name = competitor_data.get("name") or "Unknown"
-                    
-                    if not competitor_domain:
-                        continue
-                    
-                    # Check if competitor exists by domain first
-                    competitor = db.session.query(Company).filter(
-                        Company.domain == competitor_domain
-                    ).first()
-                    
-                    # If not found by domain, check by name (case-insensitive)
-                    if not competitor:
-                        competitor = db.session.query(Company).filter(
-                            func.lower(Company.name) == competitor_name.lower()
-                        ).first()
-                    
-                    if not competitor:
-                        competitor = Company()
-                        competitor.name = competitor_name
-                        competitor.domain = competitor_domain
-                        competitor.website = competitor_data.get("website")
-                        competitor.headline = competitor_data.get("description")
-                        competitor.industry = competitor_data.get("industry")
-                        db.session.add(competitor)
-                        db.session.flush()
-                    else:
-                        # Update domain if it's missing but we have it
-                        if not competitor.domain and competitor_domain:
-                            competitor.domain = competitor_domain
-                        # Update other fields if missing
-                        if not competitor.website and competitor_data.get("website"):
-                            competitor.website = competitor_data.get("website")
-                        if not competitor.headline and competitor_data.get("description"):
-                            competitor.headline = competitor_data.get("description")
-                        if not competitor.industry and competitor_data.get("industry"):
-                            competitor.industry = competitor_data.get("industry")
-                        db.session.flush()
-                    
-                    if competitor.id == company.id:
-                        continue
-                    
-                    existing_competitor = db.session.query(CompanyCompetitor).filter(
-                        CompanyCompetitor.company_id == company.id,
-                        CompanyCompetitor.competitor_id == competitor.id
-                    ).first()
-                    
-                    if not existing_competitor:
-                        competitor_link = CompanyCompetitor(
-                            company_id=company.id,
-                            competitor_id=competitor.id
-                        )
-                        db.session.add(competitor_link)
-                
-                db.session.flush()
-                
-                # Generate competitive landscape after competitors are added
-                # Refresh company to get updated competitors relationship
-                db.session.refresh(company)
-                competitors = [link.competitor for link in company.competitors if link and link.competitor]
-                if competitors:
-                    landscape = generate_competitive_landscape(company, competitors)
-                    if landscape:
-                        company.competitive_landscape = landscape
+    enrich_company_if_needed(company, company_domain)
+    
+    # Fetch and add competitors
+    raw_competitors = fetch_similar_companies(domain=company_domain, limit=10)
+    filtered_competitors = filter_competitors(company_name, company_domain, raw_competitors)[:5]
+    
+    for competitor_data in filtered_competitors:
+        competitor_domain = competitor_data.get("domain")
+        if not competitor_domain:
+            continue
+        
+        competitor_name = competitor_data.get("name") or "Unknown"
+        
+        # Find competitor by domain or name
+        competitor = db.session.query(Company).filter(
+            or_(
+                Company.domain == competitor_domain,
+                func.lower(Company.name) == competitor_name.lower()
+            )
+        ).first()
+        
+        if not competitor:
+            competitor = Company()
+            competitor.name = competitor_name
+            competitor.domain = competitor_domain
+            competitor.website = competitor_data.get("website")
+            competitor.headline = competitor_data.get("description")
+            competitor.industry = competitor_data.get("industry")
+            db.session.add(competitor)
+            db.session.flush()  # Need ID for comparison and linking
+        else:
+            # Update missing fields
+            updates = {
+                "domain": competitor_domain,
+                "website": competitor_data.get("website"),
+                "headline": competitor_data.get("description"),
+                "industry": competitor_data.get("industry")
+            }
+            for field, value in updates.items():
+                if value and not getattr(competitor, field):
+                    setattr(competitor, field, value)
+        
+        if competitor.id == company.id:
+            continue
+        
+        # Link competitor if not already linked
+        if not db.session.query(CompanyCompetitor).filter(
+            CompanyCompetitor.company_id == company.id,
+            CompanyCompetitor.competitor_id == competitor.id
+        ).first():
+            competitor_link = CompanyCompetitor()
+            competitor_link.company_id = company.id
+            competitor_link.competitor_id = competitor.id
+            db.session.add(competitor_link)
+    
+    db.session.flush()  # Ensure all competitors are flushed before landscape generation
+    db.session.refresh(company)  # Refresh to load newly added competitors relationship
+    generate_landscape_if_needed(company)
     
     user = User()
     user.email = email
