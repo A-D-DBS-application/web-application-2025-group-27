@@ -3,7 +3,7 @@
 from typing import List, Optional
 
 from app import db
-from models import Company, CompanySnapshot
+from models import Company
 from services.company_api import (
     apply_company_data,
     fetch_company_info,
