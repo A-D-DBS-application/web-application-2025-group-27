@@ -66,27 +66,21 @@ def enrich_company_if_needed(company: Company, domain: Optional[str] = None) -> 
     # We do this even if needs_api_fetch() returned False, to update existing companies with OpenAI data
     if company_name or company_domain:
         try:
-            # Fetch team size from OpenAI (always update, even if value exists)
-            team_size = fetch_openai_team_size(company_name=company_name, domain=company_domain)
-            if team_size is not None:
-                company.number_of_employees = team_size
-            
-            # Fetch description from OpenAI (always update, even if value exists)
-            description = fetch_openai_description(company_name=company_name, domain=company_domain)
-            if description:
-                company.headline = description
-            
-            # Fetch funding/market cap from OpenAI (includes market cap for public companies)
-            # Always update, even if value exists, to ensure we have latest market cap for public companies
-            funding = fetch_openai_funding(company_name=company_name, domain=company_domain)
-            if funding is not None:  # Explicitly check for None (0 is a valid funding amount)
-                company.funding = funding
-            
-            # Flush to ensure changes are saved
-            db.session.flush()
+            # Use savepoint to isolate enrichment - if it fails, only this is rolled back
+            with db.session.begin_nested():
+                team_size = fetch_openai_team_size(company_name=company_name, domain=company_domain)
+                if team_size is not None:
+                    company.number_of_employees = team_size
+                
+                description = fetch_openai_description(company_name=company_name, domain=company_domain)
+                if description:
+                    company.headline = description
+                
+                funding = fetch_openai_funding(company_name=company_name, domain=company_domain)
+                if funding is not None:
+                    company.funding = funding
         except Exception as e:
-            # Log error but don't fail the entire enrichment process
-            # NOTE: Don't rollback here - let the calling code decide transaction handling
+            # Savepoint auto-rolled back, main transaction intact
             import logging
             logging.error(f"Failed to fetch OpenAI data for {company_name or company_domain}: {e}", exc_info=True)
 
@@ -197,10 +191,11 @@ def generate_landscape_if_needed(company: Company) -> None:
     competitors = get_company_competitors(company)
     if competitors:
         try:
-            landscape = generate_competitive_landscape(company, competitors)
-            company.competitive_landscape = landscape if landscape else DEFAULT_LANDSCAPE
+            with db.session.begin_nested():
+                landscape = generate_competitive_landscape(company, competitors)
+                company.competitive_landscape = landscape if landscape else DEFAULT_LANDSCAPE
         except Exception:
-            # Set default landscape but don't rollback - let calling code handle transactions
+            # Savepoint auto-rolled back, set default
             company.competitive_landscape = DEFAULT_LANDSCAPE
     else:
         company.competitive_landscape = DEFAULT_LANDSCAPE
