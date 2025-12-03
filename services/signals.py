@@ -540,7 +540,8 @@ OUTPUT FORMAT (MUST BE VALID JSON, NO MARKDOWN):
       "category": "hiring" | "product" | "funding",
       "severity": "low" | "medium" | "high",
       "message": "Short UI-ready title about the competitor (~1 sentence)",
-      "details": "2-4 sentence explanation of why this competitor change matters to you."
+      "details": "2-4 sentence explanation of why this competitor change matters to you.",
+      "source_url": "Optional URL to news article, company page, or other source (leave empty if not available)"
     }}
   ]
 }}
@@ -599,6 +600,7 @@ Rules:
                 severity=s.get("severity", "low"),
                 message=s.get("message", f"Change detected for {competitor.name}"),
                 details=s.get("details", ""),
+                source_url=s.get("source_url") or None,
                 is_new=True
             )
             db.session.add(sig)

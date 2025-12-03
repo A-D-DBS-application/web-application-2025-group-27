@@ -177,6 +177,7 @@ class CompanySignal(db.Model):
     severity = db.Column(db.String(16))  # low, medium, high
     message = db.Column(db.Text)  # Short UI-ready message
     details = db.Column(db.Text)  # Longer explanation
+    source_url = db.Column(db.Text)  # URL to the source of information (news article, company page, etc.)
     is_new = db.Column(db.Boolean, default=True, nullable=False)  # Unread tracking
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

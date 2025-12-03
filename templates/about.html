@@ -69,7 +69,15 @@
                         {{ name_parts[0][0] }}{{ name_parts[-1][0] if name_parts|length > 1 else '' }}
                     </div>
                 </div>
-                <h3 class="font-semibold text-slate-900 text-lg mb-1">{{ founder.name }}</h3>
+                <h3 class="font-semibold text-slate-900 text-lg mb-1">
+                    {% if founder.linkedin %}
+                    <a href="{{ founder.linkedin }}" target="_blank" rel="noopener noreferrer" class="hover:text-primary-600 transition-colors duration-200">
+                        {{ founder.name }}
+                    </a>
+                    {% else %}
+                    {{ founder.name }}
+                    {% endif %}
+                </h3>
                 <p class="text-sm text-slate-600">{{ founder.role }}</p>
             </div>
             {% endfor %}
