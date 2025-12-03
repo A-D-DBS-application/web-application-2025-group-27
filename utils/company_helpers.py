@@ -65,6 +65,11 @@ def enrich_company_if_needed(company: Company, domain: Optional[str] = None) -> 
     # This ensures we use OpenAI instead of Company Enrich for these fields, even for existing companies
     # We do this even if needs_api_fetch() returned False, to update existing companies with OpenAI data
     if company_name or company_domain:
+        # Store original values - savepoint rollback doesn't revert Python object state
+        original_employees = company.number_of_employees
+        original_headline = company.headline
+        original_funding = company.funding
+        
         try:
             # Use savepoint to isolate enrichment - if it fails, only this is rolled back
             with db.session.begin_nested():
@@ -80,7 +85,11 @@ def enrich_company_if_needed(company: Company, domain: Optional[str] = None) -> 
                 if funding is not None:
                     company.funding = funding
         except Exception as e:
-            # Savepoint auto-rolled back, main transaction intact
+            # Savepoint rolled back DB changes, but must manually restore ORM object state
+            company.number_of_employees = original_employees
+            company.headline = original_headline
+            company.funding = original_funding
+            
             import logging
             logging.error(f"Failed to fetch OpenAI data for {company_name or company_domain}: {e}", exc_info=True)
 
