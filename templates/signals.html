@@ -10,10 +10,10 @@
             <p class="text-sm text-slate-600 mt-1">All signals have been marked as read</p>
         </div>
         <div class="flex items-center gap-3">
-            <form action="{{ url_for('main.refresh_signals') }}" method="POST">
+            <form action="{{ url_for('main.refresh_signals') }}" method="POST" id="refresh-signals-form">
                 <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors duration-200">
                     <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                    Refresh Signals
+                    <span>Refresh Signals</span>
                 </button>
             </form>
             <a href="{{ url_for('main.homepage') }}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
@@ -294,12 +294,38 @@
     </div>
     <h3 class="font-display text-lg font-semibold text-slate-900 mb-2">No Competitor Signals Yet</h3>
     <p class="text-slate-600 text-sm mb-4">We're monitoring your competitors for changes. Signals will appear here when we detect meaningful shifts in their organization, funding, or strategy.</p>
-    <form action="{{ url_for('main.refresh_signals') }}" method="POST" class="inline">
+    <form action="{{ url_for('main.refresh_signals') }}" method="POST" class="inline" id="check-signals-form">
         <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
             <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-            Check for Signals
+            <span>Check for Signals</span>
         </button>
     </form>
 </div>
 {% endif %}
+
+<script>
+// Handle refresh button loading state
+function handleRefreshSubmit(form) {
+    const btn = form.querySelector('button[type="submit"]');
+    const icon = btn.querySelector('[data-lucide="refresh-cw"]');
+    const textSpan = btn.querySelector('span');
+    
+    if (icon) icon.classList.add('animate-spin');
+    if (textSpan) textSpan.textContent = 'Refreshing...';
+    
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    btn.style.cursor = 'wait';
+}
+
+// Attach to forms
+['refresh-signals-form', 'check-signals-form'].forEach(function(formId) {
+    const form = document.getElementById(formId);
+    if (form) {
+        form.addEventListener('submit', function() {
+            handleRefreshSubmit(this);
+        });
+    }
+});
+</script>
 {% endblock %}

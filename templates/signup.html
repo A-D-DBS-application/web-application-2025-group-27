@@ -30,13 +30,28 @@
 {% endblock %}
 
 {% block content %}
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl p-8 text-center shadow-2xl max-w-sm mx-4">
+        <div class="relative w-16 h-16 mx-auto mb-6">
+            <svg class="animate-spin w-16 h-16 text-primary-600" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-slate-900 mb-2">Creating your workspace...</h3>
+        <p class="text-sm text-slate-600 mb-4">We're finding competitors and enriching your company data.</p>
+        <p class="text-xs text-slate-500">This may take 15-30 seconds</p>
+    </div>
+</div>
+
 <div class="min-h-screen flex items-center justify-center bg-warm-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-2xl w-full">
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h1 class="font-display text-2xl font-semibold text-slate-900 mb-2">Create your workspace</h1>
             <p class="text-sm text-slate-600 mb-6">Enter your information to get started.</p>
             
-            <form method="POST" novalidate class="space-y-4">
+            <form method="POST" novalidate class="space-y-4" id="signup-form">
                 <!-- Profile Details Section -->
                 <fieldset class="space-y-3 border-b border-slate-200 pb-4">
                     <legend class="text-sm font-semibold text-slate-900 mb-3">Your details</legend>
@@ -138,4 +153,16 @@
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('signup-form').addEventListener('submit', function(e) {
+    // Show loading overlay
+    document.getElementById('loading-overlay').classList.remove('hidden');
+    
+    // Disable submit button to prevent double submission
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-2 inline" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Creating...';
+});
+</script>
 {% endblock %}

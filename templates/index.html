@@ -317,10 +317,10 @@
                     <h2 class="font-display text-xl font-semibold text-slate-900 mb-1">Competitors</h2>
                     <p class="text-sm text-slate-600">{{ metrics.competitor_count }} competitor{{ 's' if metrics.competitor_count != 1 else '' }} tracked</p>
                 </div>
-                <form action="{{ url_for('main.refresh_competitors_route') }}" method="POST" class="inline">
+                <form action="{{ url_for('main.refresh_competitors_route') }}" method="POST" class="inline" onsubmit="handleRefreshSubmit(this, 'Refreshing...')">
                     <button type="submit" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-all duration-200">
                         <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                        Refresh Competitors
+                        <span>Refresh Competitors</span>
                     </button>
                 </form>
             </div>
@@ -426,10 +426,10 @@
                     <h2 class="font-display text-xl font-semibold text-slate-900 mb-1">Competitor Signals</h2>
                     <p class="text-sm text-slate-600">Changes detected in your competitors' organizations</p>
                 </div>
-                <form action="{{ url_for('main.refresh_signals') }}" method="POST">
+                <form action="{{ url_for('main.refresh_signals') }}" method="POST" onsubmit="handleRefreshSubmit(this, 'Refreshing...')">
                     <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors duration-200">
                         <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                        Refresh Signals
+                        <span>Refresh Signals</span>
                     </button>
                 </form>
             </div>
@@ -778,6 +778,28 @@
 </div>
 
 <script>
+// Handle refresh button loading state
+function handleRefreshSubmit(form, loadingText) {
+    const btn = form.querySelector('button[type="submit"]');
+    const icon = btn.querySelector('[data-lucide="refresh-cw"]');
+    const textSpan = btn.querySelector('span');
+    
+    // Add spinning animation to icon
+    if (icon) {
+        icon.classList.add('animate-spin');
+    }
+    
+    // Update button text
+    if (textSpan) {
+        textSpan.textContent = loadingText;
+    }
+    
+    // Disable button
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    btn.style.cursor = 'wait';
+}
+
 function showTab(tabName) {
     // Hide all tab contents
     document.querySelectorAll('.tab-content').forEach(content => {
