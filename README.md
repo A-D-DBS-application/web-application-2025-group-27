@@ -28,9 +28,9 @@
 ## ✨ Features
 
 - **Company Tracking** — Monitor competitors with detailed company profiles
-- **AI-Powered Signals** — Receive automated insights about competitor activity
+- **AI-Powered Signals** — Categorized alerts for hiring, product, and funding changes
 - **Competitive Landscape** — AI-generated competitive analysis
-- **Company Enrichment** — Auto-enrich company data via external APIs
+- **Company Enrichment** — Auto-enrich company data via OpenAI
 - **Real-time Updates** — Stay informed with the latest market movements
 
 ---
@@ -70,8 +70,8 @@ See all prototype screenshots in [`images/ui-prototype/`](images/ui-prototype/)
 
 - Python 3.10+
 - PostgreSQL database (or Supabase account)
-- OpenAI API key *(optional, for AI features)*
-- CompanyEnrich API key *(optional, for company enrichment)*
+- OpenAI API key *(required for AI features)*
+- CompanyEnrich API key *(optional, supplementary data)*
 
 ### Setup
 
@@ -107,8 +107,8 @@ Required environment variables:
 ```env
 DATABASE_URL=postgresql://user:password@host:port/database
 SECRET_KEY=your-secret-key
-OPENAI_API_KEY=your-openai-key          # Optional
-COMPANYENRICH_API_KEY=your-api-key      # Optional
+OPENAI_API_KEY=your-openai-key          # Required for AI features
+COMPANY_ENRICH_API_KEY=your-api-key     # Optional
 ```
 
 **5. Run database migrations**
