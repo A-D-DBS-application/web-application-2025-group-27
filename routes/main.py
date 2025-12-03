@@ -131,15 +131,21 @@ def signals_page():
     # Mark all signals as read
     mark_signals_as_read(company)
     
-    # Get signals (optionally filtered by category)
-    signals = get_competitor_signals(company, category=category_filter)
+    # Get ALL signals first (for category counts in filter buttons)
+    all_signals = get_competitor_signals(company)
     
-    # Group signals by category for display
+    # Group ALL signals by category for filter button counts
     signals_by_category = {
-        "hiring": [s for s in signals if s.category == "hiring"],
-        "product": [s for s in signals if s.category == "product"],
-        "funding": [s for s in signals if s.category == "funding"],
+        "hiring": [s for s in all_signals if s.category == "hiring"],
+        "product": [s for s in all_signals if s.category == "product"],
+        "funding": [s for s in all_signals if s.category == "funding"],
     }
+    
+    # Get filtered signals for display (if filter applied)
+    if category_filter:
+        signals = get_competitor_signals(company, category=category_filter)
+    else:
+        signals = all_signals
     
     return render_template(
         "signals.html",
