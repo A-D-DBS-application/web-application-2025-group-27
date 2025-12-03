@@ -56,8 +56,95 @@
             @apply bg-blue-50 text-blue-800 border border-blue-200;
         }
     </style>
+    
+    <!-- Loading Screen Styles -->
+    <style>
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #FAF8F3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #loading-screen.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #E5E7EB;
+            border-top-color: #059669;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            font-family: 'Manrope', sans-serif;
+            font-size: 14px;
+            color: #64748B;
+            font-weight: 500;
+        }
+    </style>
+    
+    <!-- Early loading screen initialization -->
+    <script>
+        // Start timer to show loading screen only if page takes longer than 300ms
+        (function() {
+            const LOADING_THRESHOLD = 300; // Only show if loading takes longer than 300ms
+            let pageLoadStartTime = performance.now();
+            let showTimeout = null;
+            let loadingScreenShown = false;
+            
+            // Set timeout to show loading screen after threshold
+            if (document.readyState === 'loading') {
+                showTimeout = setTimeout(function() {
+                    const loadingScreen = document.getElementById('loading-screen');
+                    if (loadingScreen && document.readyState !== 'complete') {
+                        loadingScreen.classList.remove('hidden', 'fade-out');
+                        loadingScreenShown = true;
+                    }
+                }, LOADING_THRESHOLD);
+            }
+            
+            // Store these in window for the main script to access
+            window.__loadingScreenState = {
+                startTime: pageLoadStartTime,
+                showTimeout: showTimeout,
+                shown: loadingScreenShown,
+                threshold: LOADING_THRESHOLD
+            };
+        })();
+    </script>
 </head>
 <body class="bg-warm-50 font-body text-slate-900">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="hidden" role="status" aria-live="polite" aria-label="Loading page content">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="loading-text">Loading...</p>
+    </div>
+    
     <!-- Sticky Navigation -->
     <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -159,6 +246,108 @@
                 menu.classList.add('hidden');
             }
         });
+        
+        // Loading screen functionality
+        (function() {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (!loadingScreen) return;
+            
+            const LOADING_THRESHOLD = 300; // Only show if loading takes longer than 300ms
+            let pageLoadStartTime = window.__loadingScreenState ? window.__loadingScreenState.startTime : performance.now();
+            let showTimeout = window.__loadingScreenState ? window.__loadingScreenState.showTimeout : null;
+            let loadingScreenShown = window.__loadingScreenState ? window.__loadingScreenState.shown : false;
+            let isHiding = false;
+            
+            function hideLoadingScreen() {
+                if (isHiding) return;
+                isHiding = true;
+                
+                // Clear the show timeout if page loaded before threshold
+                if (showTimeout) {
+                    clearTimeout(showTimeout);
+                    showTimeout = null;
+                }
+                
+                // Only hide if loading screen was actually shown
+                if (loadingScreenShown) {
+                    loadingScreen.classList.add('fade-out');
+                    setTimeout(function() {
+                        loadingScreen.classList.add('hidden');
+                    }, 500);
+                } else {
+                    // If it was never shown, just ensure it's hidden
+                    loadingScreen.classList.add('hidden');
+                }
+            }
+            
+            // Check if page already loaded
+            if (document.readyState === 'complete') {
+                // Page loaded very quickly - don't show loading screen
+                if (showTimeout) {
+                    clearTimeout(showTimeout);
+                }
+                hideLoadingScreen();
+            } else {
+                // Wait for full page load
+                window.addEventListener('load', function() {
+                    // Clear timeout if page loaded before threshold
+                    if (showTimeout) {
+                        clearTimeout(showTimeout);
+                        showTimeout = null;
+                    }
+                    hideLoadingScreen();
+                });
+                
+                // Fallback: if load event doesn't fire, hide after reasonable time
+                if (document.readyState === 'interactive') {
+                    setTimeout(function() {
+                        if (!isHiding) {
+                            if (showTimeout) {
+                                clearTimeout(showTimeout);
+                            }
+                            hideLoadingScreen();
+                        }
+                    }, 2000);
+                }
+            }
+            
+            // Show loading screen when navigating away (on link clicks)
+            // Only show if navigation might take time
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('a[href]');
+                if (link && link.href && !link.target && !link.hasAttribute('download')) {
+                    // Check if it's an internal link
+                    const currentHost = window.location.host;
+                    try {
+                        const linkUrl = new URL(link.href, window.location.href);
+                        if (linkUrl.host === currentHost || linkUrl.host === '') {
+                            // Internal navigation - start timer to show loading screen
+                            const navStartTime = performance.now();
+                            const navShowTimeout = setTimeout(function() {
+                                // Only show if navigation is still in progress
+                                if (document.readyState !== 'complete') {
+                                    loadingScreen.classList.remove('hidden', 'fade-out');
+                                    loadingScreenShown = true;
+                                }
+                            }, LOADING_THRESHOLD);
+                            
+                            // Store timeout to clear if page loads quickly
+                            window.__navLoadingTimeout = navShowTimeout;
+                        }
+                    } catch (e) {
+                        // Relative URL - treat as internal
+                        const navStartTime = performance.now();
+                        const navShowTimeout = setTimeout(function() {
+                            if (document.readyState !== 'complete') {
+                                loadingScreen.classList.remove('hidden', 'fade-out');
+                                loadingScreenShown = true;
+                            }
+                        }, LOADING_THRESHOLD);
+                        window.__navLoadingTimeout = navShowTimeout;
+                    }
+                }
+            });
+        })();
     </script>
 </body>
 </html>

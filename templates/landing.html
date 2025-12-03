@@ -37,8 +37,84 @@
             },
         }
     </script>
+    
+    <!-- Loading Screen Styles -->
+    <style>
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #FAF8F3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #loading-screen.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #E5E7EB;
+            border-top-color: #059669;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            font-family: 'Manrope', sans-serif;
+            font-size: 14px;
+            color: #64748B;
+            font-weight: 500;
+        }
+    </style>
+    
+    <!-- Early loading screen initialization -->
+    <script>
+        // Ensure loading screen is visible immediately, even before DOM is ready
+        (function() {
+            // This runs as early as possible
+            if (document.readyState === 'loading') {
+                // Page is still loading - good, loading screen will show
+            } else {
+                // If page loads very fast, ensure loading screen shows briefly
+                document.addEventListener('DOMContentLoaded', function() {
+                    const loadingScreen = document.getElementById('loading-screen');
+                    if (loadingScreen) {
+                        loadingScreen.classList.remove('hidden', 'fade-out');
+                    }
+                });
+            }
+        })();
+    </script>
 </head>
 <body class="bg-warm-50 min-h-screen flex flex-col">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="hidden" role="status" aria-live="polite" aria-label="Loading page content">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="loading-text">Loading...</p>
+    </div>
+    
     <!-- Header with Logo -->
     <header class="pt-8 pb-4 text-center">
         <div class="flex items-center justify-center gap-4 mb-2">
@@ -111,5 +187,72 @@
             </div>
         </div>
     </main>
+    
+    <!-- Loading Screen Script -->
+    <script>
+        (function() {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (!loadingScreen) return;
+            
+            let pageLoadStartTime = performance.now();
+            let minDisplayTime = 300; // Minimum 300ms display time for visibility
+            let isHiding = false;
+            
+            // Ensure loading screen is visible initially
+            loadingScreen.classList.remove('hidden', 'fade-out');
+            
+            function hideLoadingScreen() {
+                if (isHiding) return;
+                isHiding = true;
+                
+                const elapsed = performance.now() - pageLoadStartTime;
+                const remainingTime = Math.max(0, minDisplayTime - elapsed);
+                
+                setTimeout(function() {
+                    loadingScreen.classList.add('fade-out');
+                    setTimeout(function() {
+                        loadingScreen.classList.add('hidden');
+                    }, 500);
+                }, remainingTime);
+            }
+            
+            // Hide loading screen when page is fully loaded
+            if (document.readyState === 'complete') {
+                // Page already loaded, but still show it briefly
+                hideLoadingScreen();
+            } else {
+                // Wait for full page load
+                window.addEventListener('load', hideLoadingScreen);
+                
+                // Fallback: if load event doesn't fire, hide after DOM is ready
+                if (document.readyState === 'interactive') {
+                    setTimeout(function() {
+                        if (!isHiding) {
+                            hideLoadingScreen();
+                        }
+                    }, 1000);
+                }
+            }
+            
+            // Show loading screen when navigating away (on link clicks)
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('a[href]');
+                if (link && link.href && !link.target && !link.hasAttribute('download')) {
+                    // Check if it's an internal link
+                    const currentHost = window.location.host;
+                    try {
+                        const linkUrl = new URL(link.href, window.location.href);
+                        if (linkUrl.host === currentHost || linkUrl.host === '') {
+                            // Internal navigation - show loading screen immediately
+                            loadingScreen.classList.remove('hidden', 'fade-out');
+                        }
+                    } catch (e) {
+                        // Relative URL - treat as internal
+                        loadingScreen.classList.remove('hidden', 'fade-out');
+                    }
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
