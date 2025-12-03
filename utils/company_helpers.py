@@ -1,9 +1,12 @@
 """Company helper utilities - data retrieval and enrichment."""
 
+import logging
 from typing import List, Optional
 
+from sqlalchemy import func, or_
+
 from app import db
-from models import Company
+from models import Company, CompanyCompetitor
 from services.company_api import (
     apply_company_data,
     fetch_company_info,
@@ -15,83 +18,72 @@ from services.company_api import (
     needs_api_fetch,
 )
 from services.competitor_filter import filter_competitors
-from models import CompanyCompetitor
-from sqlalchemy import or_, func
 from services.competitive_landscape import generate_competitive_landscape
+
+
+logger = logging.getLogger(__name__)
+
+
+def _collect_related(company, relation: str, attr: str):
+    if not company:
+        return []
+    return [
+        getattr(link, attr)
+        for link in getattr(company, relation, []) or []
+        if link and getattr(link, attr)
+    ]
 
 
 def get_company_industries(company: Company) -> List:
     """Get list of Industry objects for a company."""
-    if not company:
-        return []
-    return [
-        link.industry
-        for link in company.industries
-        if link and link.industry
-    ]
+    return _collect_related(company, "industries", "industry")
 
 
 def get_company_competitors(company: Company) -> List[Company]:
     """Get list of competitor Company objects."""
-    if not company:
-        return []
-    return [
-        link.competitor
-        for link in company.competitors
-        if link and link.competitor
-    ]
+    return _collect_related(company, "competitors", "competitor")
+
+
+def _apply_company_enrich(company: Company, domain: Optional[str]) -> None:
+    if not domain or not needs_api_fetch(company, domain):
+        return
+    api_data = fetch_company_info(domain=domain)
+    if api_data:
+        apply_company_data(company, api_data)
+        link_company_industries(company, api_data.get("industries", []))
+
+
+def _apply_openai_overrides(company: Company, company_name: Optional[str], company_domain: Optional[str]) -> None:
+    if not (company_name or company_domain):
+        return
+    originals = (
+        company.number_of_employees,
+        company.headline,
+        company.funding,
+    )
+    try:
+        with db.session.begin_nested():
+            team_size = fetch_openai_team_size(company_name=company_name, domain=company_domain)
+            if team_size is not None:
+                company.number_of_employees = team_size
+            description = fetch_openai_description(company_name=company_name, domain=company_domain)
+            if description:
+                company.headline = description
+            funding = fetch_openai_funding(company_name=company_name, domain=company_domain)
+            if funding is not None:
+                company.funding = funding
+    except Exception as exc:
+        company.number_of_employees, company.headline, company.funding = originals
+        logger.error("Failed to fetch OpenAI data for %s: %s", company_name or company_domain, exc, exc_info=True)
 
 
 def enrich_company_if_needed(company: Company, domain: Optional[str] = None) -> None:
     """Enrich company data from API if needed. Always uses OpenAI for team size, description, and funding."""
     if not company:
         return
-    
-    check_domain = domain or company.domain
-    company_name = company.name
-    company_domain = check_domain or company.domain
-    
-    # Fetch basic info from Company Enrich API if needed (name, website, industry, country, industries)
-    # Note: fetch_company_info() will also call OpenAI for description, employees, and funding
-    if check_domain and needs_api_fetch(company, check_domain):
-        api_data = fetch_company_info(domain=check_domain)
-        if api_data:
-            # Apply ALL data including OpenAI fields (description, employees, funding)
-            # apply_company_data() will always apply OpenAI fields even if they exist
-            apply_company_data(company, api_data)
-            link_company_industries(company, api_data.get("industries", []))
-    
-    # ALWAYS fetch OpenAI data for team size, description, and funding
-    # This ensures we use OpenAI instead of Company Enrich for these fields, even for existing companies
-    # We do this even if needs_api_fetch() returned False, to update existing companies with OpenAI data
-    if company_name or company_domain:
-        # Store original values - savepoint rollback doesn't revert Python object state
-        original_employees = company.number_of_employees
-        original_headline = company.headline
-        original_funding = company.funding
-        
-        try:
-            # Use savepoint to isolate enrichment - if it fails, only this is rolled back
-            with db.session.begin_nested():
-                team_size = fetch_openai_team_size(company_name=company_name, domain=company_domain)
-                if team_size is not None:
-                    company.number_of_employees = team_size
-                
-                description = fetch_openai_description(company_name=company_name, domain=company_domain)
-                if description:
-                    company.headline = description
-                
-                funding = fetch_openai_funding(company_name=company_name, domain=company_domain)
-                if funding is not None:
-                    company.funding = funding
-        except Exception as e:
-            # Savepoint rolled back DB changes, but must manually restore ORM object state
-            company.number_of_employees = original_employees
-            company.headline = original_headline
-            company.funding = original_funding
-            
-            import logging
-            logging.error(f"Failed to fetch OpenAI data for {company_name or company_domain}: {e}", exc_info=True)
+    target_domain = domain or company.domain
+    _apply_company_enrich(company, target_domain)
+    _apply_openai_overrides(company, company.name, target_domain or company.domain)
 
 
 DEFAULT_LANDSCAPE = (
@@ -101,110 +93,100 @@ DEFAULT_LANDSCAPE = (
 )
 
 
+def _upsert_competitor(comp_data: dict) -> Optional[Company]:
+    """Find or create a competitor Company from API data."""
+    comp_domain = comp_data.get("domain")
+    if not comp_domain:
+        return None
+    comp_name = comp_data.get("name") or "Unknown"
+    competitor = (
+        db.session.query(Company)
+        .filter(or_(
+            Company.domain == comp_domain,
+            func.lower(Company.name) == comp_name.lower(),
+        ))
+        .first()
+    )
+    if not competitor:
+        competitor = Company()
+        competitor.name = comp_name
+        competitor.domain = comp_domain
+        competitor.website = comp_data.get("website")
+        competitor.headline = comp_data.get("description")
+        competitor.industry = comp_data.get("industry")
+        db.session.add(competitor)
+        db.session.flush()
+    else:
+        for field, val in [
+            ("domain", comp_domain),
+            ("website", comp_data.get("website")),
+            ("headline", comp_data.get("description")),
+            ("industry", comp_data.get("industry")),
+        ]:
+            if val and not getattr(competitor, field):
+                setattr(competitor, field, val)
+    return competitor
+
+
+def _ensure_competitor_link(company: Company, competitor: Company) -> None:
+    """Link company to competitor if not already linked."""
+    if not company or not competitor or competitor.id == company.id:
+        return
+    exists = (
+        db.session.query(CompanyCompetitor)
+        .filter(
+            CompanyCompetitor.company_id == company.id,
+            CompanyCompetitor.competitor_id == competitor.id,
+        )
+        .first()
+    )
+    if not exists:
+        link = CompanyCompetitor()
+        link.company_id = company.id
+        link.competitor_id = competitor.id
+        db.session.add(link)
+
+
+def add_competitor_from_data(company: Company, comp_data: dict) -> Optional[Company]:
+    """Add competitor relationship from API payload."""
+    competitor = _upsert_competitor(comp_data)
+    if not competitor:
+        return None
+    try:
+        enrich_company_if_needed(competitor, comp_data.get("domain"))
+    except Exception as exc:
+        logger.error("Failed to enrich competitor %s: %s", competitor.name, exc, exc_info=True)
+    _ensure_competitor_link(company, competitor)
+    return competitor
+
+
 def refresh_competitors(company: Company) -> None:
-    """Refresh competitors for a company using OpenAI.
-    
-    Removes all existing competitors and replaces them with OpenAI-identified competitors.
-    This ensures old Company Enrich competitors are replaced with accurate OpenAI competitors.
-    """
+    """Replace competitor links with fresh OpenAI results."""
     if not company or not company.domain:
         return
-    
-    # Remove all existing competitor links
     db.session.query(CompanyCompetitor).filter(
         CompanyCompetitor.company_id == company.id
     ).delete()
     db.session.flush()
-    
-    # Fetch new competitors using OpenAI
     similar = fetch_openai_similar_companies(
         company_name=company.name,
         domain=company.domain,
         limit=10
     )
-    filtered = filter_competitors(company.name, company.domain, similar)[:5]
-    
-    # Link new competitors
-    for comp_data in filtered:
-        comp_domain = comp_data.get("domain")
-        if not comp_domain:
-            continue
-        
-        comp_name = comp_data.get("name") or "Unknown"
-        
-        # Find or create competitor
-        competitor = (
-            db.session.query(Company)
-            .filter(or_(
-                Company.domain == comp_domain,
-                func.lower(Company.name) == comp_name.lower(),
-            ))
-            .first()
-        )
-        
-        if not competitor:
-            competitor = Company(
-                name=comp_name,
-                domain=comp_domain,
-                website=comp_data.get("website"),
-                headline=comp_data.get("description"),
-                industry=comp_data.get("industry"),
-            )
-            db.session.add(competitor)
-            db.session.flush()
-        else:
-            # Update missing fields
-            for field, val in [
-                ("domain", comp_domain),
-                ("website", comp_data.get("website")),
-                ("headline", comp_data.get("description")),
-                ("industry", comp_data.get("industry")),
-            ]:
-                if val and not getattr(competitor, field):
-                    setattr(competitor, field, val)
-        
-        # Enrich competitor with OpenAI data (team size, description, funding)
-        try:
-            enrich_company_if_needed(competitor, comp_domain)
-        except Exception:
-            pass  # Don't fail if enrichment fails
-        
-        # Link competitor
-        if competitor.id != company.id:
-            existing_link = (
-                db.session.query(CompanyCompetitor)
-                .filter(
-                    CompanyCompetitor.company_id == company.id,
-                    CompanyCompetitor.competitor_id == competitor.id,
-                )
-                .first()
-            )
-            if not existing_link:
-                db.session.add(CompanyCompetitor(
-                    company_id=company.id,
-                    competitor_id=competitor.id,
-                ))
-    
-    db.session.flush()
+    for comp_data in filter_competitors(company.name, company.domain, similar)[:5]:
+        add_competitor_from_data(company, comp_data)
 
 
 def generate_landscape_if_needed(company: Company) -> None:
     """Generate competitive landscape if not already present."""
-    if not company:
+    if not company or (company.competitive_landscape or "").strip():
         return
-    
-    # Skip if already has content
-    if company.competitive_landscape and company.competitive_landscape.strip():
-        return
-    
     competitors = get_company_competitors(company)
-    if competitors:
-        try:
-            with db.session.begin_nested():
-                landscape = generate_competitive_landscape(company, competitors)
-                company.competitive_landscape = landscape if landscape else DEFAULT_LANDSCAPE
-        except Exception:
-            # Savepoint auto-rolled back, set default
-            company.competitive_landscape = DEFAULT_LANDSCAPE
-    else:
+    if not competitors:
+        company.competitive_landscape = DEFAULT_LANDSCAPE
+        return
+    try:
+        with db.session.begin_nested():
+            company.competitive_landscape = generate_competitive_landscape(company, competitors) or DEFAULT_LANDSCAPE
+    except Exception:
         company.competitive_landscape = DEFAULT_LANDSCAPE

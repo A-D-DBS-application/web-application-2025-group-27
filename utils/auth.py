@@ -15,21 +15,24 @@ def login_user(user: User) -> None:
     session["user_id"] = str(user.id)
 
 
+def _reset_context() -> None:
+    session.clear()
+    g.current_user = None
+    g.current_company = None
+
+
 def get_current_user() -> Optional[User]:
     """Load current user from session and set g.current_user/g.current_company."""
     user_id = session.get("user_id")
     
     if not user_id:
-        g.current_user = None
-        g.current_company = None
+        _reset_context()
         return None
     
     try:
         user_uuid = uuid.UUID(user_id)
     except (TypeError, ValueError):
-        session.clear()
-        g.current_user = None
-        g.current_company = None
+        _reset_context()
         return None
     
     user = db.session.query(User).filter(User.id == user_uuid).first()
@@ -38,9 +41,7 @@ def get_current_user() -> Optional[User]:
         g.current_user = user
         g.current_company = user.company if user.company_id else None
     else:
-        session.clear()
-        g.current_user = None
-        g.current_company = None
+        _reset_context()
     
     return None
 

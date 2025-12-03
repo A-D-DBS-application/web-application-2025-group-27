@@ -159,27 +159,26 @@
             
             <!-- Metrics Section -->
             <div class="mb-8">
+                {% set metric_cards = [
+                    {"label": "Team members", "value": metrics.user_count, "type": "number"},
+                    {"label": "Industries", "value": metrics.industry_count, "type": "number"},
+                    {"label": "Competitors tracked", "value": metrics.competitor_count, "type": "number"},
+                    {"label": "Total funding", "value": metrics.total_funding, "type": "funding", "fallback": "Not available"},
+                ] %}
                 <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" aria-label="Key metrics">
+                    {% for metric in metric_cards %}
+                    {% set show_value = metric.type != "funding" or (metric.value and metric.value > 0) %}
                     <article class="bg-white rounded-lg p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                        <span class="block text-sm font-medium text-slate-600 mb-2">Team members</span>
-                        <span class="block text-3xl font-bold text-slate-900" data-count="{{ metrics.user_count }}" data-type="number">0</span>
-                    </article>
-                    <article class="bg-white rounded-lg p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                        <span class="block text-sm font-medium text-slate-600 mb-2">Industries</span>
-                        <span class="block text-3xl font-bold text-slate-900" data-count="{{ metrics.industry_count }}" data-type="number">0</span>
-                    </article>
-                    <article class="bg-white rounded-lg p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                        <span class="block text-sm font-medium text-slate-600 mb-2">Competitors tracked</span>
-                        <span class="block text-3xl font-bold text-slate-900" data-count="{{ metrics.competitor_count }}" data-type="number">0</span>
-                    </article>
-                    <article class="bg-white rounded-lg p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                        <span class="block text-sm font-medium text-slate-600 mb-2">Total funding</span>
-                        {% if metrics.total_funding and metrics.total_funding > 0 %}
-                            <span class="block text-3xl font-bold text-slate-900" data-count="{{ metrics.total_funding }}" data-type="funding">€0</span>
+                        <span class="block text-sm font-medium text-slate-600 mb-2">{{ metric.label }}</span>
+                        {% if show_value %}
+                            <span class="block text-3xl font-bold text-slate-900" data-count="{{ metric.value or 0 }}" data-type="{{ metric.type }}">
+                                {% if metric.type == "funding" %}€0{% else %}0{% endif %}
+                            </span>
                         {% else %}
-                            <span class="block text-3xl font-bold text-slate-900">Not available</span>
+                            <span class="block text-3xl font-bold text-slate-900">{{ metric.fallback or "Not available" }}</span>
                         {% endif %}
                     </article>
+                    {% endfor %}
                 </section>
             </div>
             

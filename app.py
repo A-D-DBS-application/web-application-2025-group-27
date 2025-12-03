@@ -30,7 +30,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
 
-    migrate = Migrate(app, db)
+    Migrate(app, db)
 
     # Load current user before each request
     from utils.auth import get_current_user

@@ -1,16 +1,37 @@
 """Authentication routes - login, signup, logout."""
 
+from typing import List, Optional, cast
+
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
 from sqlalchemy import func, or_
 
 from app import db
-from models import Company, CompanyCompetitor, User
+from models import Company, User
 from services.company_api import fetch_openai_similar_companies
 from services.competitor_filter import filter_competitors
 from utils.auth import login_user
-from utils.company_helpers import enrich_company_if_needed, generate_landscape_if_needed
+from utils.company_helpers import add_competitor_from_data, enrich_company_if_needed, generate_landscape_if_needed
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _redirect_authenticated():
+    if getattr(g, "current_user", None):
+        return redirect(url_for("main.homepage"))
+    return None
+
+
+def _render_login(error: Optional[str] = None):
+    if error:
+        flash(error, "error")
+    return render_template("login.html")
+
+
+def _render_signup(errors: Optional[List[str]] = None):
+    if errors:
+        for message in errors:
+            flash(message, "error")
+    return render_template("signup.html")
 
 
 # =============================================================================
@@ -20,16 +41,16 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     """Handle user login."""
-    if getattr(g, "current_user", None):
-        return redirect(url_for("main.homepage"))
+    redirect_resp = _redirect_authenticated()
+    if redirect_resp:
+        return redirect_resp
     
     if request.method != "POST":
-        return render_template("login.html")
+        return _render_login()
     
     email = request.form.get("email", "").strip().lower()
     if not email:
-        flash("Email is required.", "error")
-        return render_template("login.html")
+        return _render_login("Email is required.")
     
     user = (
         db.session.query(User)
@@ -38,21 +59,20 @@ def login():
     )
     
     if not user:
-        flash("User not found. Please sign up first.", "error")
-        return render_template("login.html")
+        return _render_login("User not found. Please sign up first.")
     
     if not user.is_active:
-        flash("Account is disabled.", "error")
-        return render_template("login.html")
+        return _render_login("Account is disabled.")
     
     # Log in the user
     login_user(user)
     
     # Refresh competitor signals on login
-    if user.company:
+    company_obj = cast(Optional[Company], getattr(user, "company", None))
+    if company_obj:
         from services.signals import refresh_competitor_signals
         try:
-            refresh_competitor_signals(user.company)
+            refresh_competitor_signals(company_obj)
         except Exception:
             pass  # Don't block login if signal refresh fails
     
@@ -66,11 +86,12 @@ def login():
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def signup():
     """Handle user registration and company creation."""
-    if getattr(g, "current_user", None):
-        return redirect(url_for("main.homepage"))
+    redirect_resp = _redirect_authenticated()
+    if redirect_resp:
+        return redirect_resp
     
     if request.method != "POST":
-        return render_template("signup.html")
+        return _render_signup()
     
     # Collect form data
     first_name = request.form.get("first_name", "").strip()
@@ -101,14 +122,14 @@ def signup():
             errors.append("Email already exists. Please log in instead.")
     
     if errors:
-        for e in errors:
-            flash(e, "error")
-        return render_template("signup.html")
+        return _render_signup(errors)
     
     # Find or create company
     company = db.session.query(Company).filter(Company.name.ilike(company_name)).first()
     if not company:
-        company = Company(name=company_name, domain=company_domain)
+        company = Company()
+        company.name = company_name
+        company.domain = company_domain
         db.session.add(company)
         db.session.flush()
     
@@ -127,64 +148,7 @@ def signup():
         filtered = []
     
     for comp_data in filtered:
-        comp_domain = comp_data.get("domain")
-        if not comp_domain:
-            continue
-        
-        comp_name = comp_data.get("name") or "Unknown"
-        
-        # Find or create competitor
-        competitor = (
-            db.session.query(Company)
-            .filter(or_(
-                Company.domain == comp_domain,
-                func.lower(Company.name) == comp_name.lower(),
-            ))
-            .first()
-        )
-        
-        if not competitor:
-            competitor = Company(
-                name=comp_name,
-                domain=comp_domain,
-                website=comp_data.get("website"),
-                headline=comp_data.get("description"),
-                industry=comp_data.get("industry"),
-            )
-            db.session.add(competitor)
-            db.session.flush()
-        else:
-            # Update missing fields
-            for field, val in [
-                ("domain", comp_domain),
-                ("website", comp_data.get("website")),
-                ("headline", comp_data.get("description")),
-                ("industry", comp_data.get("industry")),
-            ]:
-                if val and not getattr(competitor, field):
-                    setattr(competitor, field, val)
-        
-        # Enrich competitor with OpenAI data (team size, description, funding)
-        try:
-            enrich_company_if_needed(competitor, comp_domain)
-        except Exception:
-            pass  # Don't fail if enrichment fails
-        
-        # Link competitor if not already linked
-        if competitor.id != company.id:
-            existing_link = (
-                db.session.query(CompanyCompetitor)
-                .filter(
-                    CompanyCompetitor.company_id == company.id,
-                    CompanyCompetitor.competitor_id == competitor.id,
-                )
-                .first()
-            )
-            if not existing_link:
-                db.session.add(CompanyCompetitor(
-                    company_id=company.id,
-                    competitor_id=competitor.id,
-                ))
+        add_competitor_from_data(company, comp_data)
     
     db.session.flush()
     db.session.refresh(company)
@@ -196,14 +160,13 @@ def signup():
         pass
     
     # Create user
-    user = User(
-        email=email,
-        first_name=first_name,
-        last_name=last_name,
-        company=company,
-        role=role,
-        is_active=True,
-    )
+    user = User()
+    user.email = email
+    user.first_name = first_name
+    user.last_name = last_name
+    user.company_id = company.id
+    user.role = role
+    user.is_active = True
     db.session.add(user)
     db.session.commit()
     

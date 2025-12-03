@@ -1,8 +1,9 @@
 """Main application routes - dashboard, company details, signals."""
 
+import logging
 import uuid
 
-from flask import Blueprint, flash, g, redirect, render_template, url_for
+from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
 from app import db
 from models import CompanyCompetitor, User
@@ -14,8 +15,52 @@ from utils.company_helpers import (
     get_company_industries,
     refresh_competitors,
 )
+from services.signals import (
+    count_unread_signals,
+    count_unread_signals_by_category,
+    get_all_competitor_snapshots,
+    get_competitor_signals,
+    group_signals_by_category,
+    mark_signals_as_read,
+)
 
 main_bp = Blueprint("main", __name__)
+SIGNAL_CATEGORIES = {"hiring", "product", "funding"}
+
+
+def _require_company():
+    company = getattr(g, "current_company", None)
+    if company:
+        return company
+    flash("Company not found.", "error")
+    return None
+
+
+def _render_company_profile(target, is_competitor: bool):
+    enrich_company_if_needed(target)
+    generate_landscape_if_needed(target)
+    db.session.commit()
+    return render_template(
+        "company_detail.html",
+        company_obj=target,
+        industries=get_company_industries(target),
+        is_competitor=is_competitor,
+    )
+
+
+def _build_competitor_view_models(company):
+    models = []
+    for link in getattr(company, "competitors", []):
+        competitor = getattr(link, "competitor", None)
+        if not competitor:
+            continue
+        if not competitor.number_of_employees and competitor.domain:
+            try:
+                enrich_company_if_needed(competitor, competitor.domain)
+            except Exception:
+                pass
+        models.append({"company": competitor, "link": link})
+    return models
 
 
 # =============================================================================
@@ -40,7 +85,6 @@ def homepage():
         # Refresh the company object to get the latest funding value
         db.session.refresh(company)
     except Exception as e:
-        import logging
         logging.error(f"Error enriching company: {e}", exc_info=True)
         db.session.rollback()
     
@@ -53,16 +97,7 @@ def homepage():
     )
     
     # Build competitor view models (enrich if needed)
-    competitor_view_models = []
-    for link in company.competitors:
-        if link and link.competitor:
-            comp = link.competitor
-            if not comp.number_of_employees and comp.domain:
-                try:
-                    enrich_company_if_needed(comp, comp.domain)
-                except Exception:
-                    pass
-            competitor_view_models.append({"company": comp, "link": link})
+    competitor_view_models = _build_competitor_view_models(company)
     
     try:
         db.session.commit()
@@ -70,14 +105,8 @@ def homepage():
         db.session.rollback()
     
     # Competitor signals, unread count, and snapshots
-    from services.signals import get_competitor_signals, count_unread_signals, count_unread_signals_by_category, get_all_competitor_snapshots
     all_signals = get_competitor_signals(company)
-    # Group signals by category (default to "product" if category is None or empty)
-    signals_by_category = {
-        "hiring": [s for s in all_signals if s.category and s.category == "hiring"],
-        "product": [s for s in all_signals if not s.category or (s.category and s.category == "product")],
-        "funding": [s for s in all_signals if s.category and s.category == "funding"],
-    }
+    signals_by_category = group_signals_by_category(all_signals)
     unread_count = count_unread_signals(company)
     unread_by_category = count_unread_signals_by_category(company)
     competitor_snapshots = get_all_competitor_snapshots(company)
@@ -115,37 +144,27 @@ def homepage():
 @require_login
 def signals_page():
     """Display signals page and mark all signals as read."""
-    company = g.current_company
+    company = _require_company()
     if not company:
-        flash("Company not found.", "error")
         return redirect(url_for("main.homepage"))
-    
-    from services.signals import get_competitor_signals, mark_signals_as_read
-    from flask import request
     
     # Get category filter from query parameter
     category_filter = request.args.get("category", None)
-    if category_filter not in ["hiring", "product", "funding"]:
+    if category_filter not in SIGNAL_CATEGORIES:
         category_filter = None
     
     # Mark all signals as read
     mark_signals_as_read(company)
     
-    # Get ALL signals first (for category counts in filter buttons)
+    # Get ALL signals once (for category counts in filter buttons)
     all_signals = get_competitor_signals(company)
+    signals_by_category = group_signals_by_category(all_signals)
     
-    # Group ALL signals by category for filter button counts
-    signals_by_category = {
-        "hiring": [s for s in all_signals if s.category == "hiring"],
-        "product": [s for s in all_signals if s.category == "product"],
-        "funding": [s for s in all_signals if s.category == "funding"],
-    }
-    
-    # Get filtered signals for display (if filter applied)
-    if category_filter:
-        signals = get_competitor_signals(company, category=category_filter)
-    else:
-        signals = all_signals
+    signals = (
+        [s for s in all_signals if s.category == category_filter]
+        if category_filter else
+        all_signals
+    )
     
     return render_template(
         "signals.html",
@@ -164,21 +183,10 @@ def signals_page():
 @require_login
 def company_detail():
     """Display detailed view of user's company."""
-    company = g.current_company
+    company = _require_company()
     if not company:
-        flash("Company not found.", "error")
         return redirect(url_for("main.homepage"))
-    
-    enrich_company_if_needed(company)
-    generate_landscape_if_needed(company)
-    db.session.commit()
-    
-    return render_template(
-        "company_detail.html",
-        company_obj=company,
-        industries=get_company_industries(company),
-        is_competitor=False,
-    )
+    return _render_company_profile(company, False)
 
 
 # =============================================================================
@@ -189,9 +197,8 @@ def company_detail():
 @require_login
 def competitor_detail(competitor_id):
     """Display detailed view of a competitor."""
-    company = g.current_company
+    company = _require_company()
     if not company:
-        flash("Company not found.", "error")
         return redirect(url_for("main.homepage"))
     
     try:
@@ -213,16 +220,7 @@ def competitor_detail(competitor_id):
         flash("Competitor not found.", "error")
         return redirect(url_for("main.homepage"))
     
-    enrich_company_if_needed(link.competitor)
-    generate_landscape_if_needed(link.competitor)
-    db.session.commit()
-    
-    return render_template(
-        "company_detail.html",
-        company_obj=link.competitor,
-        industries=get_company_industries(link.competitor),
-        is_competitor=True,
-    )
+    return _render_company_profile(link.competitor, True)
 
 
 # =============================================================================
@@ -233,9 +231,8 @@ def competitor_detail(competitor_id):
 @require_login
 def refresh_signals():
     """Force refresh competitor signals."""
-    company = g.current_company
+    company = _require_company()
     if not company:
-        flash("Company not found.", "error")
         return redirect(url_for("main.homepage"))
     
     from services.signals import refresh_competitor_signals
@@ -249,9 +246,8 @@ def refresh_signals():
 @require_login
 def refresh_competitors_route():
     """Refresh competitors using OpenAI (replaces old Company Enrich competitors)."""
-    company = g.current_company
+    company = _require_company()
     if not company:
-        flash("Company not found.", "error")
         return redirect(url_for("main.homepage"))
     
     try:
@@ -259,7 +255,6 @@ def refresh_competitors_route():
         db.session.commit()
         flash("Competitors refreshed with OpenAI data!", "success")
     except Exception as e:
-        import logging
         logging.error(f"Error refreshing competitors: {e}", exc_info=True)
         db.session.rollback()
         flash("Error refreshing competitors. Please try again.", "error")
