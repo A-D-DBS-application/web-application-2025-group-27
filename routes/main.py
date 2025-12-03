@@ -12,6 +12,7 @@ from utils.company_helpers import (
     generate_landscape_if_needed,
     get_company_competitors,
     get_company_industries,
+    refresh_competitors,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -30,6 +31,18 @@ def homepage():
     company = g.current_company
     if not company:
         return render_template("index.html", company=None, users=[], metrics={})
+    
+    # Enrich main company data (including funding from OpenAI)
+    try:
+        enrich_company_if_needed(company)
+        # Commit funding immediately to ensure it's saved
+        db.session.commit()
+        # Refresh the company object to get the latest funding value
+        db.session.refresh(company)
+    except Exception as e:
+        import logging
+        logging.error(f"Error enriching company: {e}", exc_info=True)
+        db.session.rollback()
     
     # Fetch team members
     team_members = (
@@ -226,6 +239,28 @@ def refresh_signals():
     return redirect(url_for("main.homepage") + "#signals")
 
 
+@main_bp.route("/refresh-competitors", methods=["POST"])
+@require_login
+def refresh_competitors_route():
+    """Refresh competitors using OpenAI (replaces old Company Enrich competitors)."""
+    company = g.current_company
+    if not company:
+        flash("Company not found.", "error")
+        return redirect(url_for("main.homepage"))
+    
+    try:
+        refresh_competitors(company)
+        db.session.commit()
+        flash("Competitors refreshed with OpenAI data!", "success")
+    except Exception as e:
+        import logging
+        logging.error(f"Error refreshing competitors: {e}", exc_info=True)
+        db.session.rollback()
+        flash("Error refreshing competitors. Please try again.", "error")
+    
+    return redirect(url_for("main.homepage"))
+
+
 # =============================================================================
 # About Page
 # =============================================================================
@@ -234,12 +269,12 @@ def refresh_signals():
 def about():
     """Display about page with founder information."""
     founders = [
-        {"name": "Leo He", "role": "Co-founder", "image": url_for("static", filename="images/founders/6254D7A5-E3E1-4782-B39C-63BDC5D53FD4_1_105_c.jpeg")},
-        {"name": "Nathan Denys", "role": "Co-founder", "image": url_for("static", filename="images/founders/nathan-denys.jpg")},
-        {"name": "Jean Knecht", "role": "Co-founder", "image": url_for("static", filename="images/founders/IMG_2696.JPG")},
-        {"name": "Niels Herreman", "role": "Co-founder", "image": url_for("static", filename="images/founders/niels-herreman.jpg")},
-        {"name": "Mattis Malfait", "role": "Co-founder", "image": url_for("static", filename="images/founders/mattis-malfait.jpg")},
-        {"name": "Jeroen Vroman", "role": "Co-founder", "image": url_for("static", filename="images/founders/jeroen-vroman.jpg")},
+        {"name": "Leo He", "role": "Co-founder", "image": url_for("static", filename="images/founders/6254D7A5-E3E1-4782-B39C-63BDC5D53FD4_1_105_c.jpeg"), "linkedin": "https://www.linkedin.com/in/leo-he-3582a1239/"},
+        {"name": "Nathan Denys", "role": "Co-founder", "image": url_for("static", filename="images/founders/nathan-denys.jpg"), "linkedin": "https://www.linkedin.com/in/nathan-denys-a28618352/"},
+        {"name": "Jean Knecht", "role": "Co-founder", "image": url_for("static", filename="images/founders/IMG_2696.JPG"), "linkedin": "https://www.linkedin.com/in/jean-knecht/"},
+        {"name": "Niels Herreman", "role": "Co-founder", "image": url_for("static", filename="images/founders/niels-herreman.jpg"), "linkedin": "https://www.linkedin.com/in/niels-herreman-9955632a0/"},
+        {"name": "Mattis Malfait", "role": "Co-founder", "image": url_for("static", filename="images/founders/mattis-malfait.jpg"), "linkedin": "https://www.linkedin.com/in/mattis-malfait-386280281/"},
+        {"name": "Jeroen Vroman", "role": "Co-founder", "image": url_for("static", filename="images/founders/jeroen-vroman.jpg"), "linkedin": "https://www.linkedin.com/in/jeroenvroman/"},
     ]
     return render_template("about.html", founders=founders)
 

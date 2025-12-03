@@ -8,7 +8,7 @@
     <div class="lg:col-span-2 space-y-6">
         <!-- Company Header -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-            <a href="{{ url_for('main.homepage') }}" class="inline-flex items-center text-sm font-medium text-slate-600 hover:text-slate-900 mb-6 transition-colors duration-200">
+            <a href="{{ url_for('main.homepage') }}{% if is_competitor %}#competitors{% endif %}" class="inline-flex items-center text-sm font-medium text-slate-600 hover:text-slate-900 mb-6 transition-colors duration-200">
                 <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i>
                 Back to Dashboard
             </a>

@@ -5,7 +5,7 @@ from sqlalchemy import func, or_
 
 from app import db
 from models import Company, CompanyCompetitor, User
-from services.company_api import fetch_similar_companies
+from services.company_api import fetch_openai_similar_companies
 from services.competitor_filter import filter_competitors
 from utils.auth import login_user
 from utils.company_helpers import enrich_company_if_needed, generate_landscape_if_needed
@@ -115,8 +115,8 @@ def signup():
     # Enrich company data
     enrich_company_if_needed(company, company_domain)
     
-    # Fetch and link competitors
-    similar = fetch_similar_companies(domain=company_domain, limit=10)
+    # Fetch and link competitors using OpenAI (more accurate than Company Enrich)
+    similar = fetch_openai_similar_companies(company_name=company_name, domain=company_domain, limit=10)
     filtered = filter_competitors(company_name, company_domain, similar)[:5]
     
     for comp_data in filtered:
@@ -156,6 +156,12 @@ def signup():
             ]:
                 if val and not getattr(competitor, field):
                     setattr(competitor, field, val)
+        
+        # Enrich competitor with OpenAI data (team size, description, funding)
+        try:
+            enrich_company_if_needed(competitor, comp_domain)
+        except Exception:
+            pass  # Don't fail if enrichment fails
         
         # Link competitor if not already linked
         if competitor.id != company.id:
