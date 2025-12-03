@@ -86,9 +86,9 @@ def enrich_company_if_needed(company: Company, domain: Optional[str] = None) -> 
             db.session.flush()
         except Exception as e:
             # Log error but don't fail the entire enrichment process
+            # NOTE: Don't rollback here - let the calling code decide transaction handling
             import logging
             logging.error(f"Failed to fetch OpenAI data for {company_name or company_domain}: {e}", exc_info=True)
-            db.session.rollback()
 
 
 DEFAULT_LANDSCAPE = (
@@ -200,7 +200,7 @@ def generate_landscape_if_needed(company: Company) -> None:
             landscape = generate_competitive_landscape(company, competitors)
             company.competitive_landscape = landscape if landscape else DEFAULT_LANDSCAPE
         except Exception:
+            # Set default landscape but don't rollback - let calling code handle transactions
             company.competitive_landscape = DEFAULT_LANDSCAPE
-            db.session.rollback()
     else:
         company.competitive_landscape = DEFAULT_LANDSCAPE
