@@ -112,12 +112,19 @@ def signup():
         db.session.add(company)
         db.session.flush()
     
-    # Enrich company data
-    enrich_company_if_needed(company, company_domain)
+    # Enrich company data (don't fail signup if enrichment fails)
+    try:
+        enrich_company_if_needed(company, company_domain)
+    except Exception:
+        pass
     
     # Fetch and link competitors using OpenAI (more accurate than Company Enrich)
-    similar = fetch_openai_similar_companies(company_name=company_name, domain=company_domain, limit=10)
-    filtered = filter_competitors(company_name, company_domain, similar)[:5]
+    try:
+        similar = fetch_openai_similar_companies(company_name=company_name, domain=company_domain, limit=10)
+        filtered = filter_competitors(company_name, company_domain, similar)[:5]
+    except Exception:
+        similar = []
+        filtered = []
     
     for comp_data in filtered:
         comp_domain = comp_data.get("domain")
@@ -182,8 +189,11 @@ def signup():
     db.session.flush()
     db.session.refresh(company)
     
-    # Generate competitive landscape
-    generate_landscape_if_needed(company)
+    # Generate competitive landscape (don't fail signup if this fails)
+    try:
+        generate_landscape_if_needed(company)
+    except Exception:
+        pass
     
     # Create user
     user = User(
