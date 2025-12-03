@@ -4,16 +4,12 @@ IMPORTANT: This system generates signals ONLY for competitors, never for the mai
 """
 
 import json
-import logging
 from copy import deepcopy
 from typing import Optional
 
 from app import db
 from models import Company, CompanySignal, CompanySnapshot
 from services.openai_helpers import chat_json, responses_json
-
-
-logger = logging.getLogger(__name__)
 
 
 SNAPSHOT_TEMPLATE = {
@@ -92,42 +88,26 @@ def build_competitor_snapshot(company: Company, competitor: Company, force_ai: b
     if not competitor:
         return get_default_snapshot()
     
-    # Gather competitor's industries
-    industries = sorted([
-        link.industry.name
-        for link in getattr(competitor, "industries", []) or []
-        if link.industry and link.industry.name
-    ])
+    industries = sorted([link.industry.name for link in getattr(competitor, "industries", []) or []
+                        if link.industry and link.industry.name])
     
     if not force_ai:
         cached = _reuse_cached_snapshot(company, competitor, industries)
         if cached:
             return cached
     
-    # Build structured data for the prompt
-    structured_data = {
-        "employees": competitor.number_of_employees,
-        "funding": competitor.funding,
-        "country": competitor.country,
-        "industries": industries,
-    }
+    structured_data = {"employees": competitor.number_of_employees, "funding": competitor.funding,
+                       "country": competitor.country, "industries": industries}
     
-    # Try AI-powered snapshot generation
     ai_snapshot = _generate_ai_snapshot(company, competitor, industries, structured_data)
-    if ai_snapshot:
-        return ai_snapshot
-    
-    # Fallback: build basic snapshot without AI
-    return _build_basic_snapshot(competitor, industries)
+    return ai_snapshot if ai_snapshot else _build_basic_snapshot(competitor, industries)
 
 
 def _reuse_cached_snapshot(company: Company, competitor: Company, industries: list) -> Optional[dict]:
     """Attempt to reuse latest snapshot for faster loads."""
     last_snap = load_last_competitor_snapshot(company, competitor)
     old_data = _snapshot_dict(last_snap)
-    if not old_data:
-        return None
-    if "basic" not in old_data or "strategic_profile" not in old_data:
+    if not old_data or "basic" not in old_data or "strategic_profile" not in old_data:
         return None
     old_data["basic"]["industries"] = industries
     old_data["basic"]["country"] = competitor.country or ""
@@ -138,8 +118,7 @@ def _reuse_cached_snapshot(company: Company, competitor: Company, industries: li
 
 def _generate_ai_snapshot(company: Company, competitor: Company, industries: list, structured_data: dict) -> Optional[dict]:
     """Generate AI-powered competitor snapshot, with web search fallback."""
-    web_prompt = f"""Research the company "{competitor.name}" (website: {competitor.domain or 'unknown'}) 
-and create a competitive intelligence profile.
+    web_prompt = f"""Research the company "{competitor.name}" (website: {competitor.domain or 'unknown'}) and create a competitive intelligence profile.
 
 Search the web for recent information about:
 1. Their current products and services
@@ -186,24 +165,16 @@ Context: This profile is for {company.name} who is tracking {competitor.name} as
 
 IMPORTANT: Return ONLY valid JSON, no markdown or explanation."""
 
-    web_result = responses_json(
-        web_prompt,
-        tools=[{"type": "web_search"}],
-        tool_choice="auto",
-        context=f"web search snapshot for {competitor.name}",
-    )
+    web_result = responses_json(web_prompt, tools=[{"type": "web_search"}], tool_choice="auto", context=f"web search snapshot for {competitor.name}")
     if web_result:
         return _validate_snapshot(web_result)
 
-    prompt = f"""You are an expert in competitive intelligence. Your task is to generate a
-structured factual competitor profile using ONLY the information provided.
-The output will be stored as part of a snapshot and compared over time to
-detect changes.
+    prompt = f"""You are an expert in competitive intelligence. Your task is to generate a structured factual competitor profile using ONLY the information provided.
+The output will be stored as part of a snapshot and compared over time to detect changes.
 
 IMPORTANT:
 - Output MUST be valid JSON only.
-- NEVER invent specific facts, numbers, names, products, employees, or
-  technologies that are not implied by the provided data.
+- NEVER invent specific facts, numbers, names, products, employees, or technologies that are not implied by the provided data.
 - If uncertain, return "unknown" or empty arrays.
 - Keep all fields present, never remove keys.
 
@@ -216,9 +187,7 @@ INPUT DATA:
 - User company for context: {company.name}
 
 TASK:
-From the provided information above, extract or infer a stable competitor
-baseline profile that can be stored in a snapshot and later compared to detect
-organizational, hiring, and strategic changes.
+From the provided information above, extract or infer a stable competitor baseline profile that can be stored in a snapshot and later compared to detect organizational, hiring, and strategic changes.
 
 RETURN STRICT JSON IN THIS EXACT FORMAT:
 
@@ -230,13 +199,10 @@ RETURN STRICT JSON IN THIS EXACT FORMAT:
     "industries": [],
     "description_summary": ""
   }},
-
   "organization": {{
-    "employee_size": "unknown" | "1-10" | "11-50" | "51-200" | "201-500" |
-                      "501-1000" | "1000-5000" | "5000+",
+    "employee_size": "unknown" | "1-10" | "11-50" | "51-200" | "201-500" | "501-1000" | "1000-5000" | "5000+",
     "locations": []
   }},
-
   "hiring_focus": {{
     "engineering": 0,
     "data": 0,
@@ -247,7 +213,6 @@ RETURN STRICT JSON IN THIS EXACT FORMAT:
     "operations": 0,
     "ai_ml_roles": 0
   }},
-
   "strategic_profile": {{
     "primary_markets": [],
     "product_themes": [],
@@ -264,22 +229,8 @@ RULES:
 - Preserve structure exactly.
 - If the input is very limited, return minimal but valid JSON."""
 
-    data = chat_json(
-        user_prompt=prompt,
-        model="gpt-4o-mini",
-        temperature=0.3,
-        max_tokens=800,
-        context=f"snapshot for {competitor.name}",
-    )
+    data = chat_json(user_prompt=prompt, model="gpt-4o-mini", temperature=0.3, max_tokens=800, context=f"snapshot for {competitor.name}")
     return _validate_snapshot(data) if data else None
-
-
-def _listify(value):
-    return value if isinstance(value, list) else []
-
-
-def _normalize_score(value):
-    return max(0, min(5, int(value))) if isinstance(value, (int, float)) else 0
 
 
 def _validate_snapshot(data: dict) -> dict:
@@ -294,27 +245,27 @@ def _validate_snapshot(data: dict) -> dict:
     for section, fields in LIST_FIELDS.items():
         section_data = snapshot[section]
         for field in fields:
-            section_data[field] = _listify(section_data.get(field))
+            val = section_data.get(field)
+            section_data[field] = val if isinstance(val, list) else []
     hiring = snapshot["hiring_focus"]
     for key in hiring:
-        hiring[key] = _normalize_score(hiring[key])
+        val = hiring[key]
+        hiring[key] = max(0, min(5, int(val))) if isinstance(val, (int, float)) else 0
     return snapshot
 
 
 def _build_basic_snapshot(competitor: Company, industries: list) -> dict:
     """Build basic snapshot without AI (fallback)."""
     snapshot = get_default_snapshot()
-    basic = snapshot["basic"]
-    basic.update({
+    snapshot["basic"].update({
         "name": competitor.name or "",
         "domain": competitor.domain or "",
         "country": competitor.country or "",
         "industries": industries,
         "description_summary": (competitor.headline or "")[:200],
     })
-    org = snapshot["organization"]
-    org["employee_size"] = _get_employee_size_bucket(competitor.number_of_employees)
-    org["locations"] = [competitor.country] if competitor.country else []
+    snapshot["organization"]["employee_size"] = _get_employee_size_bucket(competitor.number_of_employees)
+    snapshot["organization"]["locations"] = [competitor.country] if competitor.country else []
     return snapshot
 
 
@@ -322,12 +273,8 @@ def load_last_competitor_snapshot(company: Company, competitor: Company) -> Opti
     """Load the most recent snapshot for a specific competitor."""
     if not company or not competitor:
         return None
-    return (
-        CompanySnapshot.query
-        .filter_by(company_id=company.id, competitor_id=competitor.id)
-        .order_by(CompanySnapshot.created_at.desc())
-        .first()
-    )
+    return CompanySnapshot.query.filter_by(company_id=company.id, competitor_id=competitor.id).order_by(
+        CompanySnapshot.created_at.desc()).first()
 
 
 def save_competitor_snapshot(company: Company, competitor: Company, snapshot: dict) -> CompanySnapshot:
@@ -360,14 +307,10 @@ def compute_diff(old: Optional[dict], new: dict) -> dict:
         return {"is_initial": True}
     
     diff = {}
-    old_basic = old.get("basic", old)
-    new_basic = new.get("basic", new)
-    old_org = old.get("organization", old)
-    new_org = new.get("organization", new)
-    old_hiring = old.get("hiring_focus", {})
-    new_hiring = new.get("hiring_focus", {})
-    old_strategic = old.get("strategic_profile", {})
-    new_strategic = new.get("strategic_profile", {})
+    old_basic, new_basic = old.get("basic", old), new.get("basic", new)
+    old_org, new_org = old.get("organization", old), new.get("organization", new)
+    old_hiring, new_hiring = old.get("hiring_focus", {}), new.get("hiring_focus", {})
+    old_strategic, new_strategic = old.get("strategic_profile", {}), new.get("strategic_profile", {})
     
     if change := _value_change(old_org.get("employee_size", old.get("employees", "unknown")), new_org.get("employee_size", new.get("employees", "unknown"))):
         diff["employee_size_change"] = change
@@ -378,17 +321,13 @@ def compute_diff(old: Optional[dict], new: dict) -> dict:
     if removed:
         diff["dropped_industries"] = removed
     
-    country_change = _value_change(old_basic.get("country", old.get("country", "")), new_basic.get("country", new.get("country", "")))
-    if country_change:
+    if country_change := _value_change(old_basic.get("country", old.get("country", "")), new_basic.get("country", new.get("country", ""))):
         diff["country_changed"] = country_change
     
-    hiring_diff = _hiring_changes(old_hiring, new_hiring)
-    if hiring_diff:
+    if hiring_diff := _hiring_changes(old_hiring, new_hiring):
         diff["hiring_focus_change"] = hiring_diff
     
-    for field, payload in _strategic_changes(old_strategic, new_strategic).items():
-        diff[field] = payload
-    
+    diff.update(_strategic_changes(old_strategic, new_strategic))
     return diff
 
 
@@ -404,9 +343,7 @@ STRATEGIC_FIELDS = ("primary_markets", "product_themes", "target_segments")
 
 
 def _value_change(old_value, new_value):
-    if old_value in (None, "", "unknown") or old_value == new_value:
-        return None
-    return {"old": old_value, "new": new_value}
+    return None if old_value in (None, "", "unknown") or old_value == new_value else {"old": old_value, "new": new_value}
 
 
 def _set_diff(old_values, new_values):
@@ -415,31 +352,19 @@ def _set_diff(old_values, new_values):
 
 
 def _hiring_changes(old_hiring, new_hiring):
-    changes = {}
-    for key in HIRING_FIELDS:
-        old_val = old_hiring.get(key, 0)
-        new_val = new_hiring.get(key, 0)
-        if old_val != new_val:
-            changes[key] = {"old": old_val, "new": new_val, "change": new_val - old_val}
+    changes = {k: {"old": old_hiring.get(k, 0), "new": new_hiring.get(k, 0), "change": new_hiring.get(k, 0) - old_hiring.get(k, 0)} 
+               for k in HIRING_FIELDS if old_hiring.get(k, 0) != new_hiring.get(k, 0)}
     return changes or None
 
 
 def _strategic_changes(old_strategic, new_strategic):
     changes = {}
     for field in STRATEGIC_FIELDS:
-        payload = _list_change_payload(old_strategic.get(field), new_strategic.get(field))
-        if payload:
-            changes[f"{field}_changed"] = payload
+        old_set, new_set = set(old_strategic.get(field) or []), set(new_strategic.get(field) or [])
+        added, removed = list(new_set - old_set), list(old_set - new_set)
+        if added or removed:
+            changes[f"{field}_changed"] = {"added": added, "removed": removed}
     return changes
-
-
-def _list_change_payload(old_list, new_list):
-    old_set, new_set = set(old_list or []), set(new_list or [])
-    added = list(new_set - old_set)
-    removed = list(old_set - new_set)
-    if added or removed:
-        return {"added": added, "removed": removed}
-    return None
 
 
 def _create_signal(company: Company, competitor: Company, **fields) -> CompanySignal:
@@ -455,24 +380,16 @@ def _create_signal(company: Company, competitor: Company, **fields) -> CompanySi
 
 
 def _size_change_payload(comp_name: str, change: Optional[dict]):
-    if not change:
-        return None
-    return {
-        "signal_type": "headcount_change",
-        "category": "hiring",
-        "severity": "medium",
+    return None if not change else {
+        "signal_type": "headcount_change", "category": "hiring", "severity": "medium",
         "message": f"{comp_name} changed size from {change['old']} to {change['new']}",
         "details": "Employee size bracket changed, indicating organizational growth or contraction.",
     }
 
 
 def _industry_payload(comp_name: str, industries: Optional[list]):
-    if not industries:
-        return None
-    return {
-        "signal_type": "industry_shift",
-        "category": "product",
-        "severity": "medium",
+    return None if not industries else {
+        "signal_type": "industry_shift", "category": "product", "severity": "medium",
         "message": f"{comp_name} expanding into new industries",
         "details": f"Added industries: {', '.join(industries)}",
     }
@@ -482,12 +399,8 @@ def _hiring_payload(comp_name: str, changes: Optional[dict]):
     if not changes:
         return None
     growing = [k for k, v in changes.items() if v.get("change", 0) > 0]
-    if not growing:
-        return None
-    return {
-        "signal_type": "hiring_shift",
-        "category": "hiring",
-        "severity": "medium",
+    return None if not growing else {
+        "signal_type": "hiring_shift", "category": "hiring", "severity": "medium",
         "message": f"{comp_name} increasing focus on {', '.join(growing[:3])}",
         "details": "Hiring emphasis has shifted, suggesting strategic priorities.",
     }
@@ -495,12 +408,8 @@ def _hiring_payload(comp_name: str, changes: Optional[dict]):
 
 def _market_payload(comp_name: str, change: Optional[dict]):
     added = (change or {}).get("added")
-    if not added:
-        return None
-    return {
-        "signal_type": "market_expansion",
-        "category": "product",
-        "severity": "high",
+    return None if not added else {
+        "signal_type": "market_expansion", "category": "product", "severity": "high",
         "message": f"{comp_name} entering new markets: {', '.join(added[:3])}",
         "details": "Market expansion detected, potential competitive threat.",
     }
@@ -528,30 +437,20 @@ def _infer_category(signal_type: str) -> str:
         return "hiring"
     if "funding" in normalized:
         return "funding"
-    if "product" in normalized or "launch" in normalized:
-        return "product"
     return "product"
 
 
 def _competitor_signal_query(company: Company):
     """Base query for competitor-only signals."""
-    if not company:
-        return None
-    return (
-        CompanySignal.query
-        .filter_by(company_id=company.id)
-        .filter(CompanySignal.competitor_id.isnot(None))
+    return None if not company else (
+        CompanySignal.query.filter_by(company_id=company.id).filter(CompanySignal.competitor_id.isnot(None))
     )
 
 
 def _iter_competitors(company: Company):
     """Yield competitor objects for a company."""
-    if not company:
-        return ()
-    return (
-        link.competitor
-        for link in getattr(company, "competitors", [])
-        if link and link.competitor
+    return () if not company else (
+        link.competitor for link in getattr(company, "competitors", []) if link and link.competitor
     )
 
 
@@ -569,10 +468,7 @@ def generate_signals_for_competitor(company: Company, competitor: Company, diff:
     
     IMPORTANT: All signals MUST have competitor_id set.
     """
-    if diff.get("is_initial") or not diff:
-        return []
-    
-    if not any(k in diff for k in MEANINGFUL_DIFF_KEYS):
+    if diff.get("is_initial") or not diff or not any(k in diff for k in MEANINGFUL_DIFF_KEYS):
         return []
     
     prompt = f"""You are an analyst for a competitive intelligence tool.
@@ -622,30 +518,18 @@ Rules:
 - Always assign a category (hiring, product, or funding).
 - Return empty signals array if changes are trivial."""
 
-    data = chat_json(
-        user_prompt=prompt,
-        model="gpt-4o-mini",
-        temperature=0.7,
-        max_tokens=600,
-        context=f"signals for {competitor.name}",
-    )
+    data = chat_json(user_prompt=prompt, model="gpt-4o-mini", temperature=0.7, max_tokens=600, context=f"signals for {competitor.name}")
     if not data:
         return _generate_simple_competitor_signals(company, competitor, diff)
     
     signals = []
     for payload in data.get("signals", []):
         signal_type = payload.get("signal_type", "strategic_change")
-        signals.append(_create_signal(
-            company,
-            competitor,
-            signal_type=signal_type,
+        signals.append(_create_signal(company, competitor, signal_type=signal_type,
             category=payload.get("category") or _infer_category(signal_type),
             severity=payload.get("severity", "low"),
             message=payload.get("message", f"Change detected for {competitor.name}"),
-            details=payload.get("details", ""),
-            source_url=payload.get("source_url") or None
-        ))
-    
+            details=payload.get("details", ""), source_url=payload.get("source_url") or None))
     db.session.commit()
     return signals
 
@@ -653,10 +537,7 @@ Rules:
 def _generate_simple_competitor_signals(company: Company, competitor: Company, diff: dict) -> list:
     """Generate simple competitor signals without AI."""
     comp_name = competitor.name or "Competitor"
-    signals = [
-        _create_signal(company, competitor, **payload)
-        for payload in _simple_signal_payloads(comp_name, diff)
-    ]
+    signals = [_create_signal(company, competitor, **payload) for payload in _simple_signal_payloads(comp_name, diff)]
     db.session.commit()
     return signals
 
@@ -681,11 +562,9 @@ def count_unread_signals_by_category(company: Company) -> dict:
     if not query:
         counts["total"] = 0
         return counts
-    
     signals = query.all()
     for sig in signals:
-        bucket = sig.category if sig.category in counts else "product"
-        counts[bucket] += 1
+        counts[sig.category if sig.category in counts else "product"] += 1
     counts["total"] = len(signals)
     return counts
 
@@ -710,10 +589,8 @@ def get_competitor_signals(company: Company, category: Optional[str] = None) -> 
     query = _competitor_signal_query(company)
     if not query:
         return []
-    
     if category:
         query = query.filter_by(category=category)
-    
     return query.order_by(CompanySignal.created_at.desc()).all()
 
 
@@ -767,27 +644,16 @@ def refresh_competitor_signals(company: Company, force_ai: bool = False) -> list
         return []
     
     for competitor in _iter_competitors(company):
-        # Build current snapshot (may use AI)
         current = build_competitor_snapshot(company, competitor, force_ai=force_ai)
-        
-        # Load last snapshot
-        last_snap = load_last_competitor_snapshot(company, competitor)
-        old_data = _snapshot_dict(last_snap)
-        
-        # Compute diff
+        old_data = _snapshot_dict(load_last_competitor_snapshot(company, competitor))
         diff = compute_diff(old_data, current)
         
-        # Initial snapshot: save and continue (no signals on first run)
         if diff.get("is_initial"):
             save_competitor_snapshot(company, competitor, current)
             continue
         
-        # Check for meaningful changes
         if any(k in diff for k in MEANINGFUL_DIFF_KEYS):
-            # Save new snapshot
             save_competitor_snapshot(company, competitor, current)
-            # Generate signals
             generate_signals_for_competitor(company, competitor, diff)
     
-    # Return all competitor signals (including previously generated ones)
     return get_competitor_signals(company)

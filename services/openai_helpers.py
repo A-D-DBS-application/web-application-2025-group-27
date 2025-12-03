@@ -81,12 +81,7 @@ def chat_json(
             payload.append({"role": "system", "content": system_prompt})
         if user_prompt:
             payload.append({"role": "user", "content": user_prompt})
-    params: Dict[str, Any] = {
-        "model": model,
-        "messages": payload,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
+    params: Dict[str, Any] = {"model": model, "messages": payload, "temperature": temperature, "max_tokens": max_tokens}
     if response_format:
         params["response_format"] = {"type": response_format}
     try:
@@ -121,12 +116,8 @@ def chat_text(
         if user_prompt:
             payload.append({"role": "user", "content": user_prompt})
     try:
-        resp = client.chat.completions.create(
-            model=model,
-            messages=payload,  # type: ignore[arg-type]
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        resp = client.chat.completions.create(model=model, messages=payload,  # type: ignore[arg-type]
+            temperature=temperature, max_tokens=max_tokens)
     except Exception as exc:  # pragma: no cover
         extra = f" for {context}" if context else ""
         logger.warning("OpenAI chat text call failed%s: %s", extra, exc)

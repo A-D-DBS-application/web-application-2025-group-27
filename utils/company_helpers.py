@@ -17,7 +17,6 @@ from services.company_api import (
     link_company_industries,
     needs_api_fetch,
 )
-from services.competitor_filter import filter_competitors
 from services.competitive_landscape import generate_competitive_landscape
 
 
@@ -25,12 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def _collect_related(company, relation: str, attr: str):
-    if not company:
-        return []
-    return [
-        getattr(link, attr)
-        for link in getattr(company, relation, []) or []
-        if link and getattr(link, attr)
+    return [] if not company else [
+        getattr(link, attr) for link in getattr(company, relation, []) or [] if link and getattr(link, attr)
     ]
 
 
@@ -99,14 +94,9 @@ def _upsert_competitor(comp_data: dict) -> Optional[Company]:
     if not comp_domain:
         return None
     comp_name = comp_data.get("name") or "Unknown"
-    competitor = (
-        db.session.query(Company)
-        .filter(or_(
-            Company.domain == comp_domain,
-            func.lower(Company.name) == comp_name.lower(),
-        ))
-        .first()
-    )
+    competitor = db.session.query(Company).filter(or_(
+        Company.domain == comp_domain, func.lower(Company.name) == comp_name.lower()
+    )).first()
     if not competitor:
         competitor = Company()
         competitor.name = comp_name
@@ -117,12 +107,8 @@ def _upsert_competitor(comp_data: dict) -> Optional[Company]:
         db.session.add(competitor)
         db.session.flush()
     else:
-        for field, val in [
-            ("domain", comp_domain),
-            ("website", comp_data.get("website")),
-            ("headline", comp_data.get("description")),
-            ("industry", comp_data.get("industry")),
-        ]:
+        for field, val in [("domain", comp_domain), ("website", comp_data.get("website")),
+                           ("headline", comp_data.get("description")), ("industry", comp_data.get("industry"))]:
             if val and not getattr(competitor, field):
                 setattr(competitor, field, val)
     return competitor
@@ -132,14 +118,9 @@ def _ensure_competitor_link(company: Company, competitor: Company) -> None:
     """Link company to competitor if not already linked."""
     if not company or not competitor or competitor.id == company.id:
         return
-    exists = (
-        db.session.query(CompanyCompetitor)
-        .filter(
-            CompanyCompetitor.company_id == company.id,
-            CompanyCompetitor.competitor_id == competitor.id,
-        )
-        .first()
-    )
+    exists = db.session.query(CompanyCompetitor).filter(
+        CompanyCompetitor.company_id == company.id, CompanyCompetitor.competitor_id == competitor.id
+    ).first()
     if not exists:
         link = CompanyCompetitor()
         link.company_id = company.id
@@ -164,16 +145,14 @@ def refresh_competitors(company: Company) -> None:
     """Replace competitor links with fresh OpenAI results."""
     if not company or not company.domain:
         return
-    db.session.query(CompanyCompetitor).filter(
-        CompanyCompetitor.company_id == company.id
-    ).delete()
+    db.session.query(CompanyCompetitor).filter(CompanyCompetitor.company_id == company.id).delete()
     db.session.flush()
-    similar = fetch_openai_similar_companies(
-        company_name=company.name,
-        domain=company.domain,
-        limit=10
-    )
-    for comp_data in filter_competitors(company.name, company.domain, similar)[:5]:
+    similar = fetch_openai_similar_companies(company_name=company.name, domain=company.domain, limit=10)
+    base_domain = (company.domain or "").lower().strip()
+    for comp_data in similar[:5]:
+        comp_domain = (comp_data.get("domain") or "").lower().strip()
+        if not comp_domain or comp_domain == base_domain:
+            continue
         add_competitor_from_data(company, comp_data)
 
 

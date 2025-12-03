@@ -24,25 +24,20 @@ def _reset_context() -> None:
 def get_current_user() -> Optional[User]:
     """Load current user from session and set g.current_user/g.current_company."""
     user_id = session.get("user_id")
-    
     if not user_id:
         _reset_context()
         return None
-    
     try:
         user_uuid = uuid.UUID(user_id)
     except (TypeError, ValueError):
         _reset_context()
         return None
-    
     user = db.session.query(User).filter(User.id == user_uuid).first()
-    
     if user and user.is_active:
         g.current_user = user
         g.current_company = user.company if user.company_id else None
     else:
         _reset_context()
-    
     return None
 
 

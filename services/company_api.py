@@ -17,22 +17,21 @@ def _build_search_query(company_name: Optional[str], domain: Optional[str], cont
     """Combine company name and domain for prompts."""
     if not company_name and not domain:
         return None
-    base = company_name or domain
-    query = cast(str, base)
-    if domain and company_name:
-        query += f" ({domain})"
-    return query
+    query = cast(str, company_name or domain)
+    return f"{query} ({domain})" if domain and company_name else query
 
 
 def _clean_domain(domain: str) -> str:
-    if not domain: return ""
+    if not domain:
+        return ""
     d = domain.lower().strip()
     return d[4:] if d.startswith("www.") else d
 
 
 def _parse_country(data: Dict) -> Optional[str]:
     val = data.get("country") or data.get("headquarters_country") or (data.get("location", {}) or {}).get("country")
-    if isinstance(val, dict): return val.get("name") or val.get("code")
+    if isinstance(val, dict):
+        return val.get("name") or val.get("code")
     return val if isinstance(val, str) else None
 
 
@@ -88,9 +87,11 @@ def _fetch_numeric_value(
 
 def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
     """Fetch company information using Company Enrich API for basic fields ONLY. OpenAI is used for team size, description, and funding."""
-    if not domain: return None
+    if not domain:
+        return None
     domain = _clean_domain(domain)
-    if not domain: return None
+    if not domain:
+        return None
     
     # First, try to get basic info from Company Enrich API (name, website, industry, country, industries)
     # NOTE: We do NOT use Company Enrich for description, employees, or funding - those come from OpenAI
@@ -109,8 +110,10 @@ def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
                     data = json.loads(resp.read().decode('utf-8'))
                     updated_at = None
                     if data.get("updated_at"):
-                        try: updated_at = datetime.fromisoformat(data["updated_at"].replace('Z', '+00:00'))
-                        except (ValueError, AttributeError): pass
+                        try:
+                            updated_at = datetime.fromisoformat(data["updated_at"].replace('Z', '+00:00'))
+                        except (ValueError, AttributeError):
+                            pass
                     
                     # ONLY extract basic fields - NOT description, employees, or funding
                     basic_data.update({
@@ -227,21 +230,16 @@ Requirements:
     for comp in competitors:
         if not isinstance(comp, dict):
             continue
-        
         comp_domain = comp.get("domain")
         if not comp_domain:
             continue
-        
         comp_domain = _clean_domain(comp_domain)
         if domain_clean and comp_domain == domain_clean:
             continue
-        
-        website = comp.get("website") or (f"https://{comp_domain}" if comp_domain else None)
-        
         result.append({
             "name": comp.get("name") or "Unknown",
             "domain": comp_domain,
-            "website": website,
+            "website": comp.get("website") or (f"https://{comp_domain}" if comp_domain else None),
             "industry": comp.get("industry"),
             "country": comp.get("country"),
             "employees": None,
@@ -260,15 +258,12 @@ def apply_company_data(company, api_data: Dict) -> None:
     if not company or not api_data:
         return
     
-    # Use SQLAlchemy ORM to update company fields directly
-    # Update in-memory object (SQLAlchemy tracks changes automatically)
     if api_data.get("domain"):
         company.domain = api_data["domain"]
     if not company.website and api_data.get("website"):
         company.website = api_data["website"]
     
     # ALWAYS apply OpenAI fields (description, employees, funding) - these come from OpenAI, not Company Enrich
-    # We always update these to ensure OpenAI data takes precedence
     if api_data.get("description"):
         company.headline = api_data["description"]
     if api_data.get("employees") is not None:
@@ -289,17 +284,17 @@ def apply_company_data(company, api_data: Dict) -> None:
         company.country = api_data["country"]
     if api_data.get("updated_at"):
         company.updated_at = api_data["updated_at"]
-    
-    # SQLAlchemy automatically tracks changes to the object, no need for explicit update query
 
 
 def needs_api_fetch(company, domain: Optional[str] = None) -> bool:
-    if not company or not domain: return False
+    if not company or not domain:
+        return False
     return not company.updated_at or company.domain != domain or not company.headline
 
 
 def link_company_industries(company, industries_list: List[str]) -> None:
-    if not company or not industries_list: return
+    if not company or not industries_list:
+        return
     for name in industries_list:
         parsed = name.split("/")[-1].strip() if "/" in name else name.strip()
         industry = db.session.query(Industry).filter(Industry.name == parsed).first()
@@ -436,7 +431,4 @@ Use null for description if information is not available."""
         return None
     
     description = data.get("description")
-    if not description or description.lower() in {"null", "none", "unknown", "n/a", ""}:
-        return None
-    
-    return description.strip()
+    return None if not description or description.lower() in {"null", "none", "unknown", "n/a", ""} else description.strip()

@@ -50,7 +50,7 @@ def _render_company_profile(target, is_competitor: bool):
 
 def _build_competitor_view_models(company):
     models = []
-    for link in getattr(company, "competitors", []):
+    for link in company.competitors:
         competitor = getattr(link, "competitor", None)
         if not competitor:
             continue
@@ -80,9 +80,7 @@ def homepage():
     # Enrich main company data (including funding from OpenAI)
     try:
         enrich_company_if_needed(company)
-        # Commit funding immediately to ensure it's saved
         db.session.commit()
-        # Refresh the company object to get the latest funding value
         db.session.refresh(company)
     except Exception as e:
         logging.error(f"Error enriching company: {e}", exc_info=True)
@@ -160,11 +158,7 @@ def signals_page():
     all_signals = get_competitor_signals(company)
     signals_by_category = group_signals_by_category(all_signals)
     
-    signals = (
-        [s for s in all_signals if s.category == category_filter]
-        if category_filter else
-        all_signals
-    )
+    signals = [s for s in all_signals if s.category == category_filter] if category_filter else all_signals
     
     return render_template(
         "signals.html",

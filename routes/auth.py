@@ -8,7 +8,6 @@ from sqlalchemy import func, or_
 from app import db
 from models import Company, User
 from services.company_api import fetch_openai_similar_companies
-from services.competitor_filter import filter_competitors
 from utils.auth import login_user
 from utils.company_helpers import add_competitor_from_data, enrich_company_if_needed, generate_landscape_if_needed
 
@@ -102,18 +101,9 @@ def signup():
     role = request.form.get("role", "").strip() or None
     
     # Validate required fields
-    required = {
-        "first_name": "First name",
-        "last_name": "Last name",
-        "email": "Email",
-        "company_name": "Company name",
-        "company_domain": "Company domain",
-    }
-    errors = [
-        f"{label} is required."
-        for field, label in required.items()
-        if not request.form.get(field, "").strip()
-    ]
+    required = {"first_name": "First name", "last_name": "Last name", "email": "Email",
+                "company_name": "Company name", "company_domain": "Company domain"}
+    errors = [f"{label} is required." for field, label in required.items() if not request.form.get(field, "").strip()]
     
     # Check for existing email
     if not errors:
@@ -142,12 +132,13 @@ def signup():
     # Fetch and link competitors using OpenAI (more accurate than Company Enrich)
     try:
         similar = fetch_openai_similar_companies(company_name=company_name, domain=company_domain, limit=10)
-        filtered = filter_competitors(company_name, company_domain, similar)[:5]
     except Exception:
         similar = []
-        filtered = []
-    
-    for comp_data in filtered:
+    base_domain = (company_domain or "").lower().strip()
+    for comp_data in similar[:5]:
+        comp_domain = (comp_data.get("domain") or "").lower().strip()
+        if not comp_domain or comp_domain == base_domain:
+            continue
         add_competitor_from_data(company, comp_data)
     
     db.session.flush()
