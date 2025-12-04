@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Startup Intelligence{% endblock %}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config with Custom Colors and Fonts -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#ecfdf5',
+                            600: '#059669',
+                            700: '#047857',
+                        },
+                        warm: {
+                            50: '#FAF8F3',
+                            100: '#F5F3ED',
+                        },
+                    },
+                    fontFamily: {
+                        display: ['Crimson Pro', 'serif'],
+                        body: ['Manrope', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Custom styles for flash messages -->
+    <style>
+        .flash-message {
+            @apply p-4 rounded-lg mb-4;
+        }
+        .flash-message.error {
+            @apply bg-red-50 text-red-800 border border-red-200;
+        }
+        .flash-message.success {
+            @apply bg-emerald-50 text-emerald-800 border border-emerald-200;
+        }
+        .flash-message.info {
+            @apply bg-blue-50 text-blue-800 border border-blue-200;
+        }
+    </style>
+    
+    <!-- Loading Screen Styles -->
+    <style>
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #FAF8F3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #loading-screen.hidden {
+            display: none;
+        }
+        
+        .loader-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* From Uiverse.io by Pradeepsaranbishnoi */
+        .🤚 {
+            --skin-color: #E4C560;
+            --tap-speed: 0.6s;
+            --tap-stagger: 0.1s;
+            position: relative;
+            width: 80px;
+            height: 60px;
+            margin-left: 0;
+        }
+        
+        .🤚:before {
+            content: '';
+            display: block;
+            width: 180%;
+            height: 75%;
+            position: absolute;
+            top: 70%;
+            right: 20%;
+            background-color: black;
+            border-radius: 40px 10px;
+            filter: blur(10px);
+            opacity: 0.3;
+        }
+        
+        .🌴 {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: var(--skin-color);
+            border-radius: 10px 40px;
+        }
+        
+        .👍 {
+            position: absolute;
+            width: 120%;
+            height: 38px;
+            background-color: var(--skin-color);
+            bottom: -18%;
+            right: 1%;
+            transform-origin: calc(100% - 20px) 20px;
+            transform: rotate(-20deg);
+            border-radius: 30px 20px 20px 10px;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+            border-left: 2px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .👍:after {
+            width: 20%;
+            height: 60%;
+            content: '';
+            background-color: rgba(255, 255, 255, 0.3);
+            position: absolute;
+            bottom: -8%;
+            left: 5px;
+            border-radius: 60% 10% 10% 30%;
+            border-right: 2px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .👉 {
+            position: absolute;
+            width: 80%;
+            height: 35px;
+            background-color: var(--skin-color);
+            bottom: 32%;
+            right: 64%;
+            transform-origin: 100% 20px;
+            animation-duration: calc(var(--tap-speed) * 2);
+            animation-timing-function: ease-in-out;
+            animation-iteration-count: infinite;
+            animation-play-state: running;
+            transform: rotate(10deg);
+        }
+        
+        /* Force animation restart when loading screen is shown */
+        #loading-screen:not(.hidden) .👉 {
+            animation-play-state: running;
+        }
+        
+        .👉:before {
+            content: '';
+            position: absolute;
+            width: 140%;
+            height: 30px;
+            background-color: var(--skin-color);
+            bottom: 8%;
+            right: 65%;
+            transform-origin: calc(100% - 20px) 20px;
+            transform: rotate(-60deg);
+            border-radius: 20px;
+        }
+        
+        .👉:nth-child(1) {
+            animation-delay: 0;
+            filter: brightness(70%);
+            animation-name: tap-upper-1;
+        }
+        
+        .👉:nth-child(2) {
+            animation-delay: var(--tap-stagger);
+            filter: brightness(80%);
+            animation-name: tap-upper-2;
+        }
+        
+        .👉:nth-child(3) {
+            animation-delay: calc(var(--tap-stagger) * 2);
+            filter: brightness(90%);
+            animation-name: tap-upper-3;
+        }
+        
+        .👉:nth-child(4) {
+            animation-delay: calc(var(--tap-stagger) * 3);
+            filter: brightness(100%);
+            animation-name: tap-upper-4;
+        }
+        
+        @keyframes tap-upper-1 {
+            0%, 50%, 100% {
+                transform: rotate(10deg) scale(0.4);
+            }
+            40% {
+                transform: rotate(50deg) scale(0.4);
+            }
+        }
+        
+        @keyframes tap-upper-2 {
+            0%, 50%, 100% {
+                transform: rotate(10deg) scale(0.6);
+            }
+            40% {
+                transform: rotate(50deg) scale(0.6);
+            }
+        }
+        
+        @keyframes tap-upper-3 {
+            0%, 50%, 100% {
+                transform: rotate(10deg) scale(0.8);
+            }
+            40% {
+                transform: rotate(50deg) scale(0.8);
+            }
+        }
+        
+        @keyframes tap-upper-4 {
+            0%, 50%, 100% {
+                transform: rotate(10deg) scale(1);
+            }
+            40% {
+                transform: rotate(50deg) scale(1);
+            }
+        }
+        
+        .loading-text {
+            margin-top: 30px;
+            font-family: 'Manrope', sans-serif;
+            font-size: 14px;
+            color: #64748B;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+    </style>
+    
+    <!-- Early loading screen initialization -->
+    <script>
+        // Ensure loading screen is visible immediately, even before DOM is ready
+        (function() {
+            // This runs as early as possible
+            function ensureLoadingScreenVisible() {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.classList.remove('hidden', 'fade-out');
+                    // Force animation to start immediately
+                    const hand = loadingScreen.querySelector('.🤚');
+                    if (hand) {
+                        const fingers = hand.querySelectorAll('.👉');
+                        fingers.forEach(function(finger) {
+                            finger.style.animationPlayState = 'running';
+                        });
+                    }
+                }
+            }
+            
+            if (document.readyState === 'loading') {
+                // Page is still loading - ensure loading screen shows
+                document.addEventListener('DOMContentLoaded', ensureLoadingScreenVisible);
+            } else {
+                // If page loads very fast, ensure loading screen shows briefly
+                ensureLoadingScreenVisible();
+            }
+        })();
+    </script>
+</head>
+<body class="bg-warm-50 font-body text-slate-900">
+    <!-- Loading Screen -->
+    <div id="loading-screen" role="status" aria-live="polite" aria-label="Loading page content">
+        <div class="loader-container">
+            <!-- From Uiverse.io by Pradeepsaranbishnoi -->
+            <div class="🤚" aria-hidden="true">
+                <div class="👉"></div>
+                <div class="👉"></div>
+                <div class="👉"></div>
+                <div class="👉"></div>
+                <div class="🌴"></div>
+                <div class="👍"></div>
+            </div>
+        </div>
+        <p class="loading-text">Loading...</p>
+    </div>
+    
+    <!-- Sticky Navigation -->
+    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    {% if current_user and current_company %}
+                        <div class="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center">
+                            <span class="text-white font-semibold text-lg">
+                                {{ current_company.name[0]|upper }}
+                            </span>
+                        </div>
+                        <h1 class="text-xl font-display font-semibold text-slate-900">
+                            {% if current_company.name|lower == 'nike' %}Nike
+                            {% elif current_company.name|lower == 'adidas' %}Adidas
+                            {% else %}{{ current_company.name|title }}{% endif %}
+                        </h1>
+                    {% else %}
+                        {% block logo_link %}
+                        <a href="{{ url_for('main.homepage') if current_user else url_for('auth.login') }}" class="text-lg font-display font-semibold text-slate-900 hover:text-primary-600 transition-colors duration-200">
+                            Rival
+                        </a>
+                        {% endblock %}
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-3">
+                    {% block nav_links %}
+                    <a href="{{ url_for('main.about') }}" class="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors duration-200">
+                        About
+                    </a>
+                    {% endblock %}
+                    {% if current_user %}
+                        {% block user_info %}
+                        <div class="relative">
+                            <button onclick="toggleUserMenu()" class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-700 hover:bg-slate-300 transition-colors duration-200 cursor-pointer">
+                                {% set initials = current_user.first_name[0] + (current_user.last_name[0] if current_user.last_name else '') %}
+                                {{ initials }}
+                            </button>
+                            <div id="user-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
+                                <form action="{{ url_for('auth.logout') }}" method="POST" class="w-full">
+                                    <button type="submit" class="w-full text-left px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors duration-200">
+                                        Log out
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endblock %}
+                    {% else %}
+                        {% block auth_buttons %}
+                        <a href="{{ url_for('auth.signup') }}" class="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-all duration-200">
+                            Sign up
+                        </a>
+                        <a href="{{ url_for('auth.login') }}" class="px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-all duration-200">
+                            Log in
+                        </a>
+                        {% endblock %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Site Header -->
+    {% block site_header %}
+    {% endblock %}
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+                {% for category, msg in messages %}
+                    <div class="flash-message {{ category }}">
+                        {{ msg }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Initialize Lucide Icons -->
+    <script>
+        lucide.createIcons();
+        
+        // Toggle user menu dropdown
+        function toggleUserMenu() {
+            const menu = document.getElementById('user-menu');
+            menu.classList.toggle('hidden');
+        }
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('user-menu');
+            const button = event.target.closest('button[onclick="toggleUserMenu()"]');
+            if (!button && !menu.contains(event.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+        
+        // Loading screen functionality
+        (function() {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (!loadingScreen) return;
+            
+            let pageLoadStartTime = performance.now();
+            let minDisplayTime = 300; // Minimum 300ms display time for visibility
+            let isHiding = false;
+            
+            // Ensure loading screen is visible initially and restart animations
+            loadingScreen.classList.remove('hidden', 'fade-out');
+            restartHandAnimation();
+            
+            function restartHandAnimation() {
+                // Force animation restart by removing and re-adding animation
+                const hand = loadingScreen.querySelector('.🤚');
+                if (hand) {
+                    const fingers = hand.querySelectorAll('.👉');
+                    fingers.forEach(function(finger) {
+                        // Force reflow to restart animation
+                        finger.style.animation = 'none';
+                        void finger.offsetWidth; // Trigger reflow
+                        finger.style.animation = null;
+                    });
+                }
+            }
+            
+            function hideLoadingScreen() {
+                if (isHiding) return;
+                isHiding = true;
+                
+                const elapsed = performance.now() - pageLoadStartTime;
+                const remainingTime = Math.max(0, minDisplayTime - elapsed);
+                
+                setTimeout(function() {
+                    loadingScreen.classList.add('fade-out');
+                    setTimeout(function() {
+                        loadingScreen.classList.add('hidden');
+                    }, 500);
+                }, remainingTime);
+            }
+            
+            // Hide loading screen when page is fully loaded
+            if (document.readyState === 'complete') {
+                // Page already loaded, but still show it briefly
+                hideLoadingScreen();
+            } else {
+                // Wait for full page load
+                window.addEventListener('load', hideLoadingScreen);
+                
+                // Fallback: if load event doesn't fire, hide after DOM is ready
+                if (document.readyState === 'interactive') {
+                    setTimeout(function() {
+                        if (!isHiding) {
+                            hideLoadingScreen();
+                        }
+                    }, 1000);
+                }
+            }
+            
+            // Show loading screen when navigating away (on link clicks)
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('a[href]');
+                if (link && link.href && !link.target && !link.hasAttribute('download')) {
+                    // Check if it's an internal link
+                    const currentHost = window.location.host;
+                    try {
+                        const linkUrl = new URL(link.href, window.location.href);
+                        if (linkUrl.host === currentHost || linkUrl.host === '') {
+                            // Internal navigation - show loading screen immediately
+                            loadingScreen.classList.remove('hidden', 'fade-out');
+                            restartHandAnimation();
+                        }
+                    } catch (e) {
+                        // Relative URL - treat as internal
+                        loadingScreen.classList.remove('hidden', 'fade-out');
+                        restartHandAnimation();
+                    }
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
