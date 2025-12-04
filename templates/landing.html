@@ -13,6 +13,9 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Three.js for Floating Lines -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
     <!-- Tailwind Config with Custom Colors and Fonts -->
     <script>
         tailwind.config = {
@@ -228,6 +231,31 @@
             font-weight: 500;
             letter-spacing: 0.5px;
         }
+        
+        /* Floating Lines Background - From reactbits.dev */
+        .floating-lines-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none; /* Don't block clicks on content */
+            background: linear-gradient(135deg, #2a2a4e 0%, #25354e 50%, #1e3a5e 100%);
+        }
+        
+        .floating-lines-container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Don't block clicks on content */
+        }
+        
+        /* Ensure content is above the floating lines */
+        body > *:not(.floating-lines-container) {
+            position: relative;
+            z-index: 1;
+        }
     </style>
     
     <!-- Early loading screen initialization -->
@@ -250,6 +278,9 @@
     </script>
 </head>
 <body class="bg-warm-50 min-h-screen flex flex-col">
+    <!-- Floating Lines Background -->
+    <div class="floating-lines-container" id="floating-lines-container" aria-hidden="true"></div>
+    
     <!-- Loading Screen -->
     <div id="loading-screen" role="status" aria-live="polite" aria-label="Loading page content">
         <div class="loader-container">
@@ -294,7 +325,7 @@
                 <path d="M26 24 L28 22 L26 20" 
                       stroke="#059669" stroke-width="1.5" stroke-linecap="round" fill="none"/>
             </svg>
-            <h1 class="font-display text-4xl md:text-5xl font-semibold text-slate-900">Rival</h1>
+            <h1 class="font-display text-4xl md:text-5xl font-semibold text-white">Rival</h1>
         </div>
     </header>
     
@@ -303,19 +334,19 @@
         <div class="max-w-4xl w-full">
             <div class="text-center space-y-8 md:space-y-10">
                 <!-- Header -->
-                <h2 class="font-display text-4xl md:text-6xl lg:text-7xl font-semibold text-slate-900 leading-tight whitespace-nowrap">
+                <h2 class="font-display text-4xl md:text-6xl lg:text-7xl font-semibold text-white leading-tight whitespace-nowrap">
                     Your Market, Unlocked
                 </h2>
                 
                 <!-- Subtitle -->
-                <p class="text-base md:text-lg lg:text-xl text-slate-600 leading-relaxed max-w-3xl mx-auto font-body">
+                <p class="text-base md:text-lg lg:text-xl text-white/90 leading-relaxed max-w-3xl mx-auto font-body">
                     Rival helps founders, operators and strategy teams understand their market at lightning speed. With AI-driven monitoring, Rival tracks your competitor field and surfaces key company updates as they happen.
                 </p>
                 
                 <!-- Loved by StarApps -->
                 <div class="flex items-center justify-center gap-2 pt-2">
-                    <span class="text-sm text-slate-500">Loved by</span>
-                    <a href="https://www.starapps.com/" target="_blank" rel="noopener" class="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors duration-200">
+                    <span class="text-sm text-white/70">Loved by</span>
+                    <a href="https://www.starapps.com/" target="_blank" rel="noopener" class="text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors duration-200">
                         StarApps
                     </a>
                 </div>
@@ -330,7 +361,7 @@
                     </a>
                     <a 
                         href="{{ url_for('auth.login') }}" 
-                        class="px-6 py-3 md:px-10 md:py-4 bg-white text-slate-900 font-medium text-base md:text-lg rounded-lg border border-slate-200 hover:bg-warm-100 transition-all duration-200 shadow-sm hover:shadow text-center"
+                        class="px-6 py-3 md:px-10 md:py-4 bg-white/10 backdrop-blur-sm text-white font-medium text-base md:text-lg rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-200 shadow-sm hover:shadow text-center"
                     >
                         Login
                     </a>
@@ -402,6 +433,432 @@
                         loadingScreen.classList.remove('hidden', 'fade-out');
                     }
                 }
+            });
+        })();
+    </script>
+    
+    <!-- Floating Lines Three.js Implementation -->
+    <script>
+        (function() {
+            const container = document.getElementById('floating-lines-container');
+            if (!container || typeof THREE === 'undefined') return;
+            
+            // Configuration to match screenshot - lighter background with visible lines
+            const config = {
+                enabledWaves: ['top', 'middle', 'bottom'],
+                lineCount: [2, 4, 2], // Reduced density - fewer lines for better readability
+                lineDistance: [10, 15, 10], // More spacing between lines
+                topWavePosition: { x: 8.0, y: 0.3, rotate: -0.3 },
+                middleWavePosition: { x: 4.0, y: 0.0, rotate: 0.15 },
+                bottomWavePosition: { x: 2.0, y: -0.5, rotate: 0.3 },
+                animationSpeed: 0.8,
+                interactive: true,
+                bendRadius: 5.0,
+                bendStrength: -0.5,
+                mouseDamping: 0.05,
+                parallax: true,
+                parallaxStrength: 0.2,
+                // Brighter, more vibrant colors to match screenshot - blue/purple/pink gradient
+                linesGradient: [
+                    '#5BA3F0', // Brighter blue
+                    '#7B8FE8', // Blue-purple
+                    '#9B7FD8', // Purple
+                    '#C87FD8', // Purple-pink
+                    '#AB7FD8', // Purple
+                    '#8B8FE8', // Blue-purple
+                    '#6BA3F0'  // Brighter blue
+                ]
+            };
+            
+            // Shader code
+            const vertexShader = `
+                precision highp float;
+                void main() {
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `;
+            
+            const fragmentShader = `
+                precision highp float;
+                uniform float iTime;
+                uniform vec3 iResolution;
+                uniform float animationSpeed;
+                uniform bool enableTop;
+                uniform bool enableMiddle;
+                uniform bool enableBottom;
+                uniform int topLineCount;
+                uniform int middleLineCount;
+                uniform int bottomLineCount;
+                uniform float topLineDistance;
+                uniform float middleLineDistance;
+                uniform float bottomLineDistance;
+                uniform vec3 topWavePosition;
+                uniform vec3 middleWavePosition;
+                uniform vec3 bottomWavePosition;
+                uniform vec2 iMouse;
+                uniform bool interactive;
+                uniform float bendRadius;
+                uniform float bendStrength;
+                uniform float bendInfluence;
+                uniform bool parallax;
+                uniform float parallaxStrength;
+                uniform vec2 parallaxOffset;
+                uniform vec3 lineGradient[8];
+                uniform int lineGradientCount;
+                
+                const vec3 BLACK = vec3(0.0);
+                
+                mat2 rotate(float r) {
+                    return mat2(cos(r), sin(r), -sin(r), cos(r));
+                }
+                
+                // Enhanced glow effect
+                float glow(float dist, float radius) {
+                    return exp(-dist * dist / (2.0 * radius * radius));
+                }
+                
+                vec3 getLineColor(float t, vec3 baseColor) {
+                    if (lineGradientCount <= 0) {
+                        return baseColor;
+                    }
+                    vec3 gradientColor;
+                    
+                    if (lineGradientCount == 1) {
+                        gradientColor = lineGradient[0];
+                    } else {
+                        float clampedT = clamp(t, 0.0, 0.9999);
+                        float scaled = clampedT * float(lineGradientCount - 1);
+                        int idx = int(floor(scaled));
+                        float f = fract(scaled);
+                        int idx2 = min(idx + 1, lineGradientCount - 1);
+                        vec3 c1 = lineGradient[idx];
+                        vec3 c2 = lineGradient[idx2];
+                        gradientColor = mix(c1, c2, f);
+                    }
+                    
+                    // Adjusted brightness for lighter background - more visible
+                    return gradientColor * 0.85;
+                }
+                
+                float wave(vec2 uv, float offset, vec2 screenUv, vec2 mouseUv, bool shouldBend) {
+                    float time = iTime * animationSpeed;
+                    float x_offset = offset;
+                    float x_movement = time * 0.1;
+                    // Moderate amplitude for subtle waves
+                    float amp = sin(offset + time * 0.2) * 0.35;
+                    // Smoother wave with multiple frequencies
+                    float y = sin(uv.x + x_offset + x_movement) * amp;
+                    y += sin(uv.x * 0.5 + x_offset + x_movement * 0.7) * amp * 0.3;
+                    
+                    if (shouldBend) {
+                        vec2 d = screenUv - mouseUv;
+                        float influence = exp(-dot(d, d) * bendRadius);
+                        float bendOffset = (mouseUv.y - screenUv.y) * influence * bendStrength * bendInfluence;
+                        y += bendOffset;
+                    }
+                    
+                    float m = uv.y - y;
+                    // Adjusted intensity for lighter background
+                    float dist = abs(m);
+                    // Visible lines with moderate glow
+                    float lineIntensity = 0.012 / max(dist + 0.01, 1e-4);
+                    float glowIntensity = glow(dist, 0.05) * 0.12; // Slightly increased for visibility
+                    return lineIntensity + glowIntensity;
+                }
+                
+                void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+                    vec2 baseUv = (2.0 * fragCoord - iResolution.xy) / iResolution.y;
+                    baseUv.y *= -1.0;
+                    
+                    if (parallax) {
+                        baseUv += parallaxOffset;
+                    }
+                    
+                    vec3 col = vec3(0.0);
+                    vec3 b = lineGradientCount > 0 ? vec3(0.0) : vec3(0.0);
+                    vec2 mouseUv = vec2(0.0);
+                    
+                    if (interactive) {
+                        mouseUv = (2.0 * iMouse - iResolution.xy) / iResolution.y;
+                        mouseUv.y *= -1.0;
+                    }
+                    
+                    if (enableBottom) {
+                        for (int i = 0; i < bottomLineCount; ++i) {
+                            float fi = float(i);
+                            float t = fi / max(float(bottomLineCount - 1), 1.0);
+                            vec3 lineCol = getLineColor(t, b);
+                            
+                            float angle = bottomWavePosition.z * log(length(baseUv) + 1.0);
+                            vec2 ruv = baseUv * rotate(angle);
+                            col += lineCol * wave(
+                                ruv + vec2(bottomLineDistance * fi + bottomWavePosition.x, bottomWavePosition.y),
+                                1.5 + 0.2 * fi,
+                                baseUv,
+                                mouseUv,
+                                interactive
+                            ) * 0.12; // Slightly increased for lighter background
+                        }
+                    }
+                    
+                    if (enableMiddle) {
+                        for (int i = 0; i < middleLineCount; ++i) {
+                            float fi = float(i);
+                            float t = fi / max(float(middleLineCount - 1), 1.0);
+                            vec3 lineCol = getLineColor(t, b);
+                            
+                            float angle = middleWavePosition.z * log(length(baseUv) + 1.0);
+                            vec2 ruv = baseUv * rotate(angle);
+                            // Adjusted for lighter background - more visible
+                            col += lineCol * wave(
+                                ruv + vec2(middleLineDistance * fi + middleWavePosition.x, middleWavePosition.y),
+                                2.0 + 0.15 * fi,
+                                baseUv,
+                                mouseUv,
+                                interactive
+                            ) * 0.6; // Increased from 0.5 to 0.6
+                        }
+                    }
+                    
+                    if (enableTop) {
+                        for (int i = 0; i < topLineCount; ++i) {
+                            float fi = float(i);
+                            float t = fi / max(float(topLineCount - 1), 1.0);
+                            vec3 lineCol = getLineColor(t, b);
+                            
+                            float angle = topWavePosition.z * log(length(baseUv) + 1.0);
+                            vec2 ruv = baseUv * rotate(angle);
+                            ruv.x *= -1.0;
+                            // Faint but visible lines in upper area
+                            col += lineCol * wave(
+                                ruv + vec2(topLineDistance * fi + topWavePosition.x, topWavePosition.y),
+                                1.0 + 0.2 * fi,
+                                baseUv,
+                                mouseUv,
+                                interactive
+                            ) * 0.06; // Slightly increased
+                        }
+                    }
+                    
+                    fragColor = vec4(col, 1.0);
+                }
+                
+                void main() {
+                    vec4 color = vec4(0.0);
+                    mainImage(color, gl_FragCoord.xy);
+                    gl_FragColor = color;
+                }
+            `;
+            
+            // Helper function to convert hex to vec3
+            function hexToVec3(hex) {
+                let value = hex.trim();
+                if (value.startsWith('#')) {
+                    value = value.slice(1);
+                }
+                let r = 255, g = 255, b = 255;
+                if (value.length === 3) {
+                    r = parseInt(value[0] + value[0], 16);
+                    g = parseInt(value[1] + value[1], 16);
+                    b = parseInt(value[2] + value[2], 16);
+                } else if (value.length === 6) {
+                    r = parseInt(value.slice(0, 2), 16);
+                    g = parseInt(value.slice(2, 4), 16);
+                    b = parseInt(value.slice(4, 6), 16);
+                }
+                return new THREE.Vector3(r / 255, g / 255, b / 255);
+            }
+            
+            // Initialize Three.js scene
+            const scene = new THREE.Scene();
+            const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+            camera.position.z = 1;
+            
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.domElement.style.width = '100%';
+            renderer.domElement.style.height = '100%';
+            container.appendChild(renderer.domElement);
+            
+            // Get line counts
+            const getLineCount = (waveType) => {
+                if (!config.enabledWaves.includes(waveType)) return 0;
+                const index = config.enabledWaves.indexOf(waveType);
+                return Array.isArray(config.lineCount) ? (config.lineCount[index] ?? 6) : config.lineCount;
+            };
+            
+            const getLineDistance = (waveType) => {
+                if (!config.enabledWaves.includes(waveType)) return 0.1;
+                const index = config.enabledWaves.indexOf(waveType);
+                return (Array.isArray(config.lineDistance) ? (config.lineDistance[index] ?? 0.1) : config.lineDistance) * 0.01;
+            };
+            
+            const topLineCount = getLineCount('top');
+            const middleLineCount = getLineCount('middle');
+            const bottomLineCount = getLineCount('bottom');
+            const topLineDistance = getLineDistance('top');
+            const middleLineDistance = getLineDistance('middle');
+            const bottomLineDistance = getLineDistance('bottom');
+            
+            // Set up uniforms
+            const MAX_GRADIENT_STOPS = 8;
+            const gradientColors = config.linesGradient ? config.linesGradient.slice(0, MAX_GRADIENT_STOPS) : [];
+            
+            const uniforms = {
+                iTime: { value: 0 },
+                iResolution: { value: new THREE.Vector3(1, 1, 1) },
+                animationSpeed: { value: config.animationSpeed },
+                enableTop: { value: config.enabledWaves.includes('top') },
+                enableMiddle: { value: config.enabledWaves.includes('middle') },
+                enableBottom: { value: config.enabledWaves.includes('bottom') },
+                topLineCount: { value: topLineCount },
+                middleLineCount: { value: middleLineCount },
+                bottomLineCount: { value: bottomLineCount },
+                topLineDistance: { value: topLineDistance },
+                middleLineDistance: { value: middleLineDistance },
+                bottomLineDistance: { value: bottomLineDistance },
+                topWavePosition: { value: new THREE.Vector3(
+                    config.topWavePosition.x,
+                    config.topWavePosition.y,
+                    config.topWavePosition.rotate
+                )},
+                middleWavePosition: { value: new THREE.Vector3(
+                    config.middleWavePosition.x,
+                    config.middleWavePosition.y,
+                    config.middleWavePosition.rotate
+                )},
+                bottomWavePosition: { value: new THREE.Vector3(
+                    config.bottomWavePosition.x,
+                    config.bottomWavePosition.y,
+                    config.bottomWavePosition.rotate
+                )},
+                iMouse: { value: new THREE.Vector2(-1000, -1000) },
+                interactive: { value: config.interactive },
+                bendRadius: { value: config.bendRadius },
+                bendStrength: { value: config.bendStrength },
+                bendInfluence: { value: 0 },
+                parallax: { value: config.parallax },
+                parallaxStrength: { value: config.parallaxStrength },
+                parallaxOffset: { value: new THREE.Vector2(0, 0) },
+                lineGradient: { value: Array.from({ length: MAX_GRADIENT_STOPS }, () => new THREE.Vector3(1, 1, 1)) },
+                lineGradientCount: { value: gradientColors.length }
+            };
+            
+            // Set gradient colors
+            gradientColors.forEach((hex, i) => {
+                const color = hexToVec3(hex);
+                uniforms.lineGradient.value[i].set(color.x, color.y, color.z);
+            });
+            
+            // Create material and mesh
+            const material = new THREE.ShaderMaterial({
+                uniforms: uniforms,
+                vertexShader: vertexShader,
+                fragmentShader: fragmentShader
+            });
+            
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+            
+            // Mouse tracking
+            const targetMouse = new THREE.Vector2(-1000, -1000);
+            const currentMouse = new THREE.Vector2(-1000, -1000);
+            const targetInfluence = { value: 0 };
+            const currentInfluence = { value: 0 };
+            const targetParallax = new THREE.Vector2(0, 0);
+            const currentParallax = new THREE.Vector2(0, 0);
+            
+            // Resize handler
+            const setSize = () => {
+                const width = container.clientWidth || 1;
+                const height = container.clientHeight || 1;
+                renderer.setSize(width, height, false);
+                const canvasWidth = renderer.domElement.width;
+                const canvasHeight = renderer.domElement.height;
+                uniforms.iResolution.value.set(canvasWidth, canvasHeight, 1);
+            };
+            
+            setSize();
+            
+            const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(setSize) : null;
+            if (ro) {
+                ro.observe(container);
+            }
+            
+            // Mouse event handlers - attach to window for better coverage
+            const handlePointerMove = (event) => {
+                const rect = renderer.domElement.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                
+                // Only process if within canvas bounds
+                if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+                    const dpr = renderer.getPixelRatio();
+                    targetMouse.set(x * dpr, (rect.height - y) * dpr);
+                    targetInfluence.value = 1.0;
+                    
+                    if (config.parallax) {
+                        const centerX = rect.width / 2;
+                        const centerY = rect.height / 2;
+                        const offsetX = (x - centerX) / rect.width;
+                        const offsetY = -(y - centerY) / rect.height;
+                        targetParallax.set(offsetX * config.parallaxStrength, offsetY * config.parallaxStrength);
+                    }
+                }
+            };
+            
+            const handlePointerLeave = () => {
+                targetInfluence.value = 0.0;
+            };
+            
+            if (config.interactive) {
+                // Attach to window for better mouse tracking across the entire page
+                window.addEventListener('mousemove', handlePointerMove);
+                window.addEventListener('mouseleave', handlePointerLeave);
+                // Also attach to canvas for direct interaction
+                renderer.domElement.addEventListener('pointermove', handlePointerMove);
+                renderer.domElement.addEventListener('pointerleave', handlePointerLeave);
+            }
+            
+            // Animation loop
+            const clock = new THREE.Clock();
+            let raf = 0;
+            
+            const renderLoop = () => {
+                uniforms.iTime.value = clock.getElapsedTime();
+                
+                if (config.interactive) {
+                    currentMouse.lerp(targetMouse, config.mouseDamping);
+                    uniforms.iMouse.value.copy(currentMouse);
+                    currentInfluence.value += (targetInfluence.value - currentInfluence.value) * config.mouseDamping;
+                    uniforms.bendInfluence.value = currentInfluence.value;
+                }
+                
+                if (config.parallax) {
+                    currentParallax.lerp(targetParallax, config.mouseDamping);
+                    uniforms.parallaxOffset.value.copy(currentParallax);
+                }
+                
+                renderer.render(scene, camera);
+                raf = requestAnimationFrame(renderLoop);
+            };
+            
+            renderLoop();
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', () => {
+                cancelAnimationFrame(raf);
+                if (ro) ro.disconnect();
+                if (config.interactive) {
+                    window.removeEventListener('mousemove', handlePointerMove);
+                    window.removeEventListener('mouseleave', handlePointerLeave);
+                    renderer.domElement.removeEventListener('pointermove', handlePointerMove);
+                    renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
+                }
+                geometry.dispose();
+                material.dispose();
+                renderer.dispose();
             });
         })();
     </script>
