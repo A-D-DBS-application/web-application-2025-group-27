@@ -72,11 +72,21 @@ def homepage():
     # Competitor signals, unread count, and snapshots
     from services.signals import get_competitor_signals, count_unread_signals, count_unread_signals_by_category, get_all_competitor_snapshots
     all_signals = get_competitor_signals(company)
-    # Group signals by category (default to "product" if category is None or empty)
+    
+    # Sort signals by severity: high -> medium -> low
+    def severity_sort_key(signal):
+        severity_order = {"high": 0, "medium": 1, "low": 2}
+        # Sort by severity first, then by created_at descending (newest first) within same severity
+        created_at_value = signal.created_at if signal.created_at else None
+        return (severity_order.get(signal.severity or "low", 3), -(created_at_value.timestamp() if created_at_value else 0))
+    
+    all_signals = sorted(all_signals, key=severity_sort_key)
+    
+    # Group signals by category (default to "product" if category is None or empty) - also sorted
     signals_by_category = {
-        "hiring": [s for s in all_signals if s.category and s.category == "hiring"],
-        "product": [s for s in all_signals if not s.category or (s.category and s.category == "product")],
-        "funding": [s for s in all_signals if s.category and s.category == "funding"],
+        "hiring": sorted([s for s in all_signals if s.category and s.category == "hiring"], key=severity_sort_key),
+        "product": sorted([s for s in all_signals if not s.category or (s.category and s.category == "product")], key=severity_sort_key),
+        "funding": sorted([s for s in all_signals if s.category and s.category == "funding"], key=severity_sort_key),
     }
     unread_count = count_unread_signals(company)
     unread_by_category = count_unread_signals_by_category(company)
@@ -134,16 +144,25 @@ def signals_page():
     # Get ALL signals first (for category counts in filter buttons)
     all_signals = get_competitor_signals(company)
     
-    # Group ALL signals by category for filter button counts
+    # Sort signals by severity: high -> medium -> low
+    def severity_sort_key(signal):
+        severity_order = {"high": 0, "medium": 1, "low": 2}
+        # Sort by severity first, then by created_at descending (newest first) within same severity
+        created_at_value = signal.created_at if signal.created_at else None
+        return (severity_order.get(signal.severity or "low", 3), -(created_at_value.timestamp() if created_at_value else 0))
+    
+    all_signals = sorted(all_signals, key=severity_sort_key)
+    
+    # Group ALL signals by category for filter button counts (also sorted)
     signals_by_category = {
-        "hiring": [s for s in all_signals if s.category == "hiring"],
-        "product": [s for s in all_signals if s.category == "product"],
-        "funding": [s for s in all_signals if s.category == "funding"],
+        "hiring": sorted([s for s in all_signals if s.category == "hiring"], key=severity_sort_key),
+        "product": sorted([s for s in all_signals if s.category == "product"], key=severity_sort_key),
+        "funding": sorted([s for s in all_signals if s.category == "funding"], key=severity_sort_key),
     }
     
     # Get filtered signals for display (if filter applied)
     if category_filter:
-        signals = get_competitor_signals(company, category=category_filter)
+        signals = sorted(get_competitor_signals(company, category=category_filter), key=severity_sort_key)
     else:
         signals = all_signals
     

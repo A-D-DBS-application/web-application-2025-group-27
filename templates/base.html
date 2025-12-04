@@ -163,7 +163,13 @@
             animation-duration: calc(var(--tap-speed) * 2);
             animation-timing-function: ease-in-out;
             animation-iteration-count: infinite;
+            animation-play-state: running;
             transform: rotate(10deg);
+        }
+        
+        /* Force animation restart when loading screen is shown */
+        #loading-screen:not(.hidden) .👉 {
+            animation-play-state: running;
         }
         
         .👉:before {
@@ -254,16 +260,27 @@
         // Ensure loading screen is visible immediately, even before DOM is ready
         (function() {
             // This runs as early as possible
+            function ensureLoadingScreenVisible() {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.classList.remove('hidden', 'fade-out');
+                    // Force animation to start immediately
+                    const hand = loadingScreen.querySelector('.🤚');
+                    if (hand) {
+                        const fingers = hand.querySelectorAll('.👉');
+                        fingers.forEach(function(finger) {
+                            finger.style.animationPlayState = 'running';
+                        });
+                    }
+                }
+            }
+            
             if (document.readyState === 'loading') {
-                // Page is still loading - good, loading screen will show
+                // Page is still loading - ensure loading screen shows
+                document.addEventListener('DOMContentLoaded', ensureLoadingScreenVisible);
             } else {
                 // If page loads very fast, ensure loading screen shows briefly
-                document.addEventListener('DOMContentLoaded', function() {
-                    const loadingScreen = document.getElementById('loading-screen');
-                    if (loadingScreen) {
-                        loadingScreen.classList.remove('hidden', 'fade-out');
-                    }
-                });
+                ensureLoadingScreenVisible();
             }
         })();
     </script>
@@ -396,8 +413,23 @@
             let minDisplayTime = 300; // Minimum 300ms display time for visibility
             let isHiding = false;
             
-            // Ensure loading screen is visible initially
+            // Ensure loading screen is visible initially and restart animations
             loadingScreen.classList.remove('hidden', 'fade-out');
+            restartHandAnimation();
+            
+            function restartHandAnimation() {
+                // Force animation restart by removing and re-adding animation
+                const hand = loadingScreen.querySelector('.🤚');
+                if (hand) {
+                    const fingers = hand.querySelectorAll('.👉');
+                    fingers.forEach(function(finger) {
+                        // Force reflow to restart animation
+                        finger.style.animation = 'none';
+                        void finger.offsetWidth; // Trigger reflow
+                        finger.style.animation = null;
+                    });
+                }
+            }
             
             function hideLoadingScreen() {
                 if (isHiding) return;
@@ -443,10 +475,12 @@
                         if (linkUrl.host === currentHost || linkUrl.host === '') {
                             // Internal navigation - show loading screen immediately
                             loadingScreen.classList.remove('hidden', 'fade-out');
+                            restartHandAnimation();
                         }
                     } catch (e) {
                         // Relative URL - treat as internal
                         loadingScreen.classList.remove('hidden', 'fade-out');
+                        restartHandAnimation();
                     }
                 }
             });

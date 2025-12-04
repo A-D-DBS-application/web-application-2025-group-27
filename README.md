@@ -5,7 +5,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Rival helps founders, operators and strategy teams understand their market at lightning speed.** With AI-driven monitoring, Rival tracks your competitor field and surfaces key company updates as they happen.
+**Rival helps founders, operators and strategy teams understand their market at lightning speed.** With AI-driven monitoring, Rival tracks your rival field and surfaces key company updates as they happen.
 
 ![Landing Page](images/app-screenshots/landing.png)
 
@@ -27,7 +27,7 @@
 
 ## ✨ Features
 
-- **Company Tracking** — Monitor competitors with detailed company profiles
+- **Company Tracking** — Monitor rivals with detailed company profiles
 - **AI-Powered Signals** — Categorized alerts for hiring, product, and funding changes
 - **Competitive Landscape** — AI-generated competitive analysis
 - **Company Enrichment** — Auto-enrich company data via OpenAI
