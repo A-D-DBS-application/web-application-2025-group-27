@@ -82,6 +82,8 @@ git clone https://github.com/your-username/rival.git
 cd rival
 ```
 
+> **Note:** Replace `your-username` with the actual GitHub username or organization name.
+
 **2. Create virtual environment**
 
 ```bash

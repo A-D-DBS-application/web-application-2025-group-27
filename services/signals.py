@@ -379,53 +379,60 @@ def _create_signal(company: Company, competitor: Company, **fields) -> CompanySi
     return signal
 
 
-def _size_change_payload(comp_name: str, change: Optional[dict]):
-    return None if not change else {
-        "signal_type": "headcount_change", "category": "hiring", "severity": "medium",
-        "message": f"{comp_name} changed size from {change['old']} to {change['new']}",
-        "details": "Employee size bracket changed, indicating organizational growth or contraction.",
-    }
-
-
-def _industry_payload(comp_name: str, industries: Optional[list]):
-    return None if not industries else {
-        "signal_type": "industry_shift", "category": "product", "severity": "medium",
-        "message": f"{comp_name} expanding into new industries",
-        "details": f"Added industries: {', '.join(industries)}",
-    }
-
-
-def _hiring_payload(comp_name: str, changes: Optional[dict]):
-    if not changes:
+def _build_simple_payload(comp_name: str, diff_key: str, diff_value) -> Optional[dict]:
+    """Unified payload builder for simple signals from diff changes."""
+    if not diff_value:
         return None
-    growing = [k for k, v in changes.items() if v.get("change", 0) > 0]
-    return None if not growing else {
-        "signal_type": "hiring_shift", "category": "hiring", "severity": "medium",
-        "message": f"{comp_name} increasing focus on {', '.join(growing[:3])}",
-        "details": "Hiring emphasis has shifted, suggesting strategic priorities.",
-    }
-
-
-def _market_payload(comp_name: str, change: Optional[dict]):
-    added = (change or {}).get("added")
-    return None if not added else {
-        "signal_type": "market_expansion", "category": "product", "severity": "high",
-        "message": f"{comp_name} entering new markets: {', '.join(added[:3])}",
-        "details": "Market expansion detected, potential competitive threat.",
-    }
-
-
-SIMPLE_SIGNAL_BUILDERS = (
-    ("employee_size_change", _size_change_payload),
-    ("new_industries", _industry_payload),
-    ("hiring_focus_change", _hiring_payload),
-    ("primary_markets_changed", _market_payload),
-)
+    
+    if diff_key == "employee_size_change":
+        return {
+            "signal_type": "headcount_change",
+            "category": "hiring",
+            "severity": "medium",
+            "message": f"{comp_name} changed size from {diff_value['old']} to {diff_value['new']}",
+            "details": "Employee size bracket changed, indicating organizational growth or contraction.",
+        }
+    
+    if diff_key == "new_industries":
+        return {
+            "signal_type": "industry_shift",
+            "category": "product",
+            "severity": "medium",
+            "message": f"{comp_name} expanding into new industries",
+            "details": f"Added industries: {', '.join(diff_value)}",
+        }
+    
+    if diff_key == "hiring_focus_change":
+        growing = [k for k, v in diff_value.items() if v.get("change", 0) > 0]
+        if not growing:
+            return None
+        return {
+            "signal_type": "hiring_shift",
+            "category": "hiring",
+            "severity": "medium",
+            "message": f"{comp_name} increasing focus on {', '.join(growing[:3])}",
+            "details": "Hiring emphasis has shifted, suggesting strategic priorities.",
+        }
+    
+    if diff_key == "primary_markets_changed":
+        added = diff_value.get("added")
+        if not added:
+            return None
+        return {
+            "signal_type": "market_expansion",
+            "category": "product",
+            "severity": "high",
+            "message": f"{comp_name} entering new markets: {', '.join(added[:3])}",
+            "details": "Market expansion detected, potential competitive threat.",
+        }
+    
+    return None
 
 
 def _simple_signal_payloads(comp_name: str, diff: dict):
-    for key, builder in SIMPLE_SIGNAL_BUILDERS:
-        payload = builder(comp_name, diff.get(key))
+    """Generate simple signal payloads from diff changes."""
+    for key in ["employee_size_change", "new_industries", "hiring_focus_change", "primary_markets_changed"]:
+        payload = _build_simple_payload(comp_name, key, diff.get(key))
         if payload:
             yield payload
 

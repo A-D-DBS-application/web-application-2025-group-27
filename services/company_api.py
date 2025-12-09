@@ -68,6 +68,7 @@ def _fetch_numeric_value(
     temperature: float = 0.1,
     max_tokens: int = 200,
 ) -> Optional[int]:
+    """Fetch and parse a numeric value from OpenAI."""
     data = chat_json(
         system_prompt=system_prompt,
         user_prompt=prompt,
@@ -78,11 +79,7 @@ def _fetch_numeric_value(
     )
     if not data:
         return None
-    value = data.get(field_name)
-    parsed = _parse_numeric_value(value, suffixes)
-    if parsed is None:
-        return None
-    return parsed
+    return _parse_numeric_value(data.get(field_name), suffixes)
 
 
 def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:

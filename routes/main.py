@@ -87,12 +87,9 @@ def homepage():
         db.session.rollback()
     
     # Fetch team members
-    team_members = (
-        db.session.query(User)
-        .filter(User.company_id == company.id, User.is_active == True)
-        .order_by(User.last_name.asc(), User.first_name.asc())
-        .all()
-    )
+    team_members = db.session.query(User).filter(
+        User.company_id == company.id, User.is_active == True
+    ).order_by(User.last_name.asc(), User.first_name.asc()).all()
     
     # Build competitor view models (enrich if needed)
     competitor_view_models = _build_competitor_view_models(company)

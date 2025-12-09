@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from models import Company
 from services.openai_helpers import chat_text
+from utils.company_helpers import get_company_industries
 
 
 def generate_competitive_landscape(company: Company, competitors: List[Company]) -> Optional[str]:
@@ -11,8 +12,6 @@ def generate_competitive_landscape(company: Company, competitors: List[Company])
     if not company or not competitors:
         return None
     
-    # Gather context
-    from utils.company_helpers import get_company_industries
     competitor_names = [c.name for c in competitors if c and c.name]
     industries = [ind.name for ind in get_company_industries(company) if ind and ind.name]
     

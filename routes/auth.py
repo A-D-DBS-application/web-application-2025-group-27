@@ -3,7 +3,7 @@
 from typing import List, Optional, cast
 
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
-from sqlalchemy import func, or_
+from sqlalchemy import func
 
 from app import db
 from models import Company, User
@@ -123,28 +123,25 @@ def signup():
         db.session.add(company)
         db.session.flush()
     
-    # Enrich company data (don't fail signup if enrichment fails)
+    # Enrich company data and fetch competitors (don't fail signup if these fail)
     try:
         enrich_company_if_needed(company, company_domain)
     except Exception:
         pass
     
-    # Fetch and link competitors using OpenAI (more accurate than Company Enrich)
     try:
         similar = fetch_openai_similar_companies(company_name=company_name, domain=company_domain, limit=10)
+        base_domain = (company_domain or "").lower().strip()
+        for comp_data in similar[:5]:
+            comp_domain = (comp_data.get("domain") or "").lower().strip()
+            if comp_domain and comp_domain != base_domain:
+                add_competitor_from_data(company, comp_data)
     except Exception:
-        similar = []
-    base_domain = (company_domain or "").lower().strip()
-    for comp_data in similar[:5]:
-        comp_domain = (comp_data.get("domain") or "").lower().strip()
-        if not comp_domain or comp_domain == base_domain:
-            continue
-        add_competitor_from_data(company, comp_data)
+        pass
     
     db.session.flush()
     db.session.refresh(company)
     
-    # Generate competitive landscape (don't fail signup if this fails)
     try:
         generate_landscape_if_needed(company)
     except Exception:

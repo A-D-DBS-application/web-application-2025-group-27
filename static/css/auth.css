@@ -1,0 +1,201 @@
+/* Lovable-style auth pages */
+
+/* Override base styles for auth pages - use wrapper to cover entire page */
+.auth-page-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #fafafa;
+    z-index: 9999;
+    overflow-y: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+/* Center container */
+.auth-page-wrapper .center-container {
+    width: 100%;
+    max-width: 480px;
+}
+
+.auth-page-wrapper .panel {
+    width: 100%;
+}
+
+.auth-page-wrapper .auth-wrapper {
+    width: 100%;
+}
+
+/* Glass card */
+.auth-page-wrapper .auth-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    padding: 3rem 2.5rem;
+    backdrop-filter: blur(10px);
+}
+
+.auth-page-wrapper .auth-card h1 {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+}
+
+.auth-page-wrapper .auth-card .subtitle {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.9375rem;
+    color: #6B7280;
+    margin-bottom: 2rem;
+    font-weight: 400;
+}
+
+/* Form styles */
+.auth-page-wrapper .auth-card form {
+    margin-top: 2rem;
+}
+
+.auth-page-wrapper .form-grid {
+    border: none;
+    padding: 0;
+    margin: 0 0 2rem 0;
+}
+
+.auth-page-wrapper .form-section-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 1rem;
+    padding: 0;
+}
+
+.auth-page-wrapper .form-field {
+    margin-bottom: 1.5rem;
+}
+
+.auth-page-wrapper .form-field.full {
+    grid-column: 1 / -1;
+}
+
+.auth-page-wrapper .form-field label {
+    display: block;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.auth-page-wrapper .input-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1rem;
+    color: #1a1a1a;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.auth-page-wrapper .input-control:focus {
+    outline: none;
+    border-color: #1a1a1a;
+    box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
+    background-color: #ffffff;
+}
+
+.auth-page-wrapper .input-control::placeholder {
+    color: #9CA3AF;
+}
+
+.auth-page-wrapper .form-hint {
+    display: block;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.8125rem;
+    color: #6B7280;
+    margin-top: 0.5rem;
+}
+
+/* Buttons */
+.auth-page-wrapper .auth-card .btn {
+    width: 100%;
+    padding: 0.875rem 2rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #ffffff;
+    background-color: #1a1a1a;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 1rem;
+}
+
+.auth-page-wrapper .auth-card .btn:hover {
+    background-color: #2d2d2d;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.auth-page-wrapper .auth-card .btn:active {
+    transform: translateY(0);
+}
+
+.auth-page-wrapper .auth-card .btn:focus-visible {
+    outline: 2px solid #1a1a1a;
+    outline-offset: 2px;
+}
+
+/* Auth footer */
+.auth-page-wrapper .auth-footer {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.9375rem;
+    color: #6B7280;
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.auth-page-wrapper .auth-footer a {
+    color: #1a1a1a;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.auth-page-wrapper .auth-footer a:hover {
+    color: #2d2d2d;
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .auth-page-wrapper {
+        padding: 1.5rem 1rem;
+    }
+
+    .auth-page-wrapper .auth-card {
+        padding: 2.5rem 1.5rem;
+        border-radius: 12px;
+    }
+
+    .auth-page-wrapper .auth-card h1 {
+        font-size: 1.5rem;
+    }
+
+    .auth-page-wrapper .form-field {
+        margin-bottom: 1.25rem;
+    }
+}
+

@@ -36,9 +36,10 @@ def get_current_user() -> Optional[User]:
     if user and user.is_active:
         g.current_user = user
         g.current_company = user.company if user.company_id else None
+        return user
     else:
         _reset_context()
-    return None
+        return None
 
 
 def require_login(view_func):

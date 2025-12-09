@@ -1,2 +1,89 @@
-# Created by venv; see https://docs.python.org/3/library/venv.html
-*
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+site-packages/
+
+# Virtual Environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+bin/
+include/
+
+# Project-specific directories
+docs/
+backups/
+.cursor/
+migrations/
+tools/
+
+# Flask
+instance/
+.webassets-cache
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups (keep structure, ignore content)
+backups/*.json
+backups/*.sql
+!backups/README.md
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Migration versions (keep structure)
+migrations/versions/__pycache__/
+
+# Tools output
+tools/md/
+!tools/md/README.md
