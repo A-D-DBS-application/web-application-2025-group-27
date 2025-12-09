@@ -8,12 +8,12 @@
     <div class="lg:col-span-2 space-y-6">
         <!-- Company Header -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-            <a href="{{ url_for('main.homepage') }}{% if is_competitor %}#competitors{% endif %}" class="inline-flex items-center text-sm font-medium text-slate-600 hover:text-slate-900 mb-6 transition-colors duration-200">
+            <a href="{{ url_for('main.homepage') }}{% if is_competitor %}#rivals{% endif %}" class="inline-flex items-center text-sm font-medium text-slate-600 hover:text-slate-900 mb-6 transition-colors duration-200">
                 <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i>
                 Back to Dashboard
             </a>
             <p class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-3">
-                {% if is_competitor %}Competitor information{% else %}Company profile{% endif %}
+                {% if is_competitor %}Rival information{% else %}Company profile{% endif %}
             </p>
             <h1 class="font-display text-4xl font-semibold text-slate-900 mb-5">
                 {% if company_obj.name|lower == 'nike' %}Nike

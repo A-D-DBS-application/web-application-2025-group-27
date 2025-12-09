@@ -30,21 +30,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- Loading Overlay -->
-<div id="loading-overlay" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50">
-    <div class="bg-white rounded-2xl p-8 text-center shadow-2xl max-w-sm mx-4">
-        <div class="relative w-16 h-16 mx-auto mb-6">
-            <svg class="animate-spin w-16 h-16 text-primary-600" viewBox="0 0 24 24" fill="none">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-        </div>
-        <h3 class="text-xl font-semibold text-slate-900 mb-2">Creating your workspace...</h3>
-        <p class="text-sm text-slate-600 mb-4">We're finding competitors and enriching your company data.</p>
-        <p class="text-xs text-slate-500">This may take 15-30 seconds</p>
-    </div>
-</div>
-
 <div class="min-h-screen flex items-center justify-center bg-warm-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-2xl w-full">
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -156,8 +141,21 @@
 
 <script>
 document.getElementById('signup-form').addEventListener('submit', function(e) {
-    // Show loading overlay
-    document.getElementById('loading-overlay').classList.remove('hidden');
+    // Show loading screen
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+        loadingScreen.classList.remove('hidden', 'fade-out');
+        // Restart hand animation
+        const hand = loadingScreen.querySelector('.🤚');
+        if (hand) {
+            const fingers = hand.querySelectorAll('.👉');
+            fingers.forEach(function(finger) {
+                finger.style.animation = 'none';
+                void finger.offsetWidth; // Trigger reflow
+                finger.style.animation = null;
+            });
+        }
+    }
     
     // Disable submit button to prevent double submission
     const submitBtn = this.querySelector('button[type="submit"]');

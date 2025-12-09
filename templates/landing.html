@@ -10,8 +10,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Landing CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Three.js for Floating Lines -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <!-- Tailwind Config with Custom Colors and Fonts -->
     <script>
@@ -37,37 +43,287 @@
             },
         }
     </script>
+    
+    <!-- Loading Screen Styles -->
+    <style>
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #FAF8F3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #loading-screen.hidden {
+            display: none;
+        }
+        
+        .loader-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* From Uiverse.io by Pradeepsaranbishnoi */
+        .🤚 {
+            --skin-color: #E4C560;
+            --tap-speed: 0.6s;
+            --tap-stagger: 0.1s;
+            position: relative;
+            width: 80px;
+            height: 60px;
+            margin-left: 0;
+        }
+        
+        .🤚:before {
+            content: '';
+            display: block;
+            width: 180%;
+            height: 75%;
+            position: absolute;
+            top: 70%;
+            right: 20%;
+            background-color: black;
+            border-radius: 40px 10px;
+            filter: blur(10px);
+            opacity: 0.3;
+        }
+        
+        .🌴 {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: var(--skin-color);
+            border-radius: 10px 40px;
+        }
+        
+        .👍 {
+            position: absolute;
+            width: 120%;
+            height: 38px;
+            background-color: var(--skin-color);
+            bottom: -18%;
+            right: 1%;
+            transform-origin: calc(100% - 20px) 20px;
+            transform: rotate(-20deg);
+            border-radius: 30px 20px 20px 10px;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+            border-left: 2px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .👍:after {
+            width: 20%;
+            height: 60%;
+            content: '';
+            background-color: rgba(255, 255, 255, 0.3);
+            position: absolute;
+            bottom: -8%;
+            left: 5px;
+            border-radius: 60% 10% 10% 30%;
+            border-right: 2px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .👉 {
+            position: absolute;
+            width: 80%;
+            height: 35px;
+            background-color: var(--skin-color);
+            bottom: 32%;
+            right: 64%;
+            transform-origin: 100% 20px;
+            animation-duration: calc(var(--tap-speed) * 2);
+            animation-timing-function: ease-in-out;
+            animation-iteration-count: infinite;
+            animation-play-state: running;
+            transform: rotate(10deg);
+        }
+        
+        #loading-screen:not(.hidden) .👉 {
+            animation-play-state: running;
+        }
+        
+        .👉:before {
+            content: '';
+            position: absolute;
+            width: 140%;
+            height: 30px;
+            background-color: var(--skin-color);
+            bottom: 8%;
+            right: 65%;
+            transform-origin: calc(100% - 20px) 20px;
+            transform: rotate(-60deg);
+            border-radius: 20px;
+        }
+        
+        .👉:nth-child(1) {
+            animation-delay: 0;
+            filter: brightness(70%);
+            animation-name: tap-upper-1;
+        }
+        
+        .👉:nth-child(2) {
+            animation-delay: var(--tap-stagger);
+            filter: brightness(80%);
+            animation-name: tap-upper-2;
+        }
+        
+        .👉:nth-child(3) {
+            animation-delay: calc(var(--tap-stagger) * 2);
+            filter: brightness(90%);
+            animation-name: tap-upper-3;
+        }
+        
+        .👉:nth-child(4) {
+            animation-delay: calc(var(--tap-stagger) * 3);
+            filter: brightness(100%);
+            animation-name: tap-upper-4;
+        }
+        
+        @keyframes tap-upper-1 {
+            0%, 50%, 100% {
+                transform: rotate(10deg) scale(0.4);
+            }
+            40% {
+                transform: rotate(50deg) scale(0.4);
+            }
+        }
+        
+        @keyframes tap-upper-2 {
+            0%, 50%, 100% {
+                transform: rotate(10deg) scale(0.6);
+            }
+            40% {
+                transform: rotate(50deg) scale(0.6);
+            }
+        }
+        
+        @keyframes tap-upper-3 {
+            0%, 50%, 100% {
+                transform: rotate(10deg) scale(0.8);
+            }
+            40% {
+                transform: rotate(50deg) scale(0.8);
+            }
+        }
+        
+        @keyframes tap-upper-4 {
+            0%, 50%, 100% {
+                transform: rotate(10deg) scale(1);
+            }
+            40% {
+                transform: rotate(50deg) scale(1);
+            }
+        }
+        
+        .loading-text {
+            margin-top: 30px;
+            font-family: 'Manrope', sans-serif;
+            font-size: 14px;
+            color: #64748B;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Floating Lines Background */
+        .floating-lines-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            background: linear-gradient(135deg, #2a2a4e 0%, #25354e 50%, #1e3a5e 100%);
+        }
+        
+        .floating-lines-container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        body > *:not(.floating-lines-container) {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
+    
+    <!-- Early loading screen initialization -->
+    <script>
+        (function() {
+            function ensureLoadingScreenVisible() {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.classList.remove('hidden', 'fade-out');
+                    const hand = loadingScreen.querySelector('.🤚');
+                    if (hand) {
+                        const fingers = hand.querySelectorAll('.👉');
+                        fingers.forEach(function(finger) {
+                            finger.style.animationPlayState = 'running';
+                        });
+                    }
+                }
+            }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', ensureLoadingScreenVisible);
+            } else {
+                ensureLoadingScreenVisible();
+            }
+        })();
+    </script>
 </head>
 <body class="bg-warm-50 min-h-screen flex flex-col">
+    <!-- Floating Lines Background -->
+    <div class="floating-lines-container" id="floating-lines-container" aria-hidden="true"></div>
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen" role="status" aria-live="polite" aria-label="Loading page content">
+        <div class="loader-container">
+            <div class="🤚" aria-hidden="true">
+                <div class="👉"></div>
+                <div class="👉"></div>
+                <div class="👉"></div>
+                <div class="👉"></div>
+                <div class="🌴"></div>
+                <div class="👍"></div>
+            </div>
+        </div>
+        <p class="loading-text">Loading...</p>
+    </div>
+    
     <!-- Header with Logo -->
     <header class="pt-8 pb-4 text-center">
         <div class="flex items-center justify-center gap-4 mb-2">
             <!-- Rival Logo - Lion Head with Crown -->
             <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="inline-block">
-                <!-- Background circle -->
                 <circle cx="20" cy="20" r="20" fill="#059669" class="transition-all duration-200"/>
-                <!-- Crown on top (3 pointed peaks) - perfectly centered -->
-                <path d="M12 16 L14 10 L16 12 L18 8 L19 6 L20 5 L21 6 L22 8 L24 12 L26 10 L28 16 L28 18 L12 18 Z" 
-                      fill="white"/>
-                <!-- Lion head profile (facing left) - centered -->
-                <!-- Main head shape with mane -->
-                <path d="M28 18 L28 22 L26 26 L24 28 L22 30 L20 31 L18 30 L16 28 L14 26 L12 22 L12 18 L14 16 L16 18 L18 20 L19 20 L20 20 L21 20 L22 18 L24 16 L26 18 Z" 
-                      fill="white"/>
-                <!-- Lion mane texture (left side) -->
-                <path d="M12 20 L10 18 L10 22 L12 24" 
-                      fill="white"/>
-                <path d="M14 22 L12 20 L12 24 L14 26" 
-                      fill="white"/>
-                <!-- Ear detail -->
-                <path d="M14 18 L12 16 L14 14 L16 16" 
-                      fill="white"/>
-                <!-- Eye (centered) -->
+                <path d="M12 16 L14 10 L16 12 L18 8 L19 6 L20 5 L21 6 L22 8 L24 12 L26 10 L28 16 L28 18 L12 18 Z" fill="white"/>
+                <path d="M28 18 L28 22 L26 26 L24 28 L22 30 L20 31 L18 30 L16 28 L14 26 L12 22 L12 18 L14 16 L16 18 L18 20 L19 20 L20 20 L21 20 L22 18 L24 16 L26 18 Z" fill="white"/>
+                <path d="M12 20 L10 18 L10 22 L12 24" fill="white"/>
+                <path d="M14 22 L12 20 L12 24 L14 26" fill="white"/>
+                <path d="M14 18 L12 16 L14 14 L16 16" fill="white"/>
                 <circle cx="20" cy="24" r="1.5" fill="#059669"/>
-                <!-- Muzzle/nose (pointed left) -->
-                <path d="M26 24 L28 22 L26 20" 
-                      stroke="#059669" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                <path d="M26 24 L28 22 L26 20" stroke="#059669" stroke-width="1.5" stroke-linecap="round" fill="none"/>
             </svg>
-            <h1 class="font-display text-4xl md:text-5xl font-semibold text-slate-900">Rival</h1>
+            <h1 class="font-display text-4xl md:text-5xl font-semibold text-white">Rival</h1>
         </div>
     </header>
     
@@ -75,41 +331,381 @@
     <main class="flex-1 flex items-center justify-center px-6 py-8 md:py-12">
         <div class="max-w-4xl w-full">
             <div class="text-center space-y-8 md:space-y-10">
-                <!-- Header -->
-                <h2 class="font-display text-4xl md:text-6xl lg:text-7xl font-semibold text-slate-900 leading-tight whitespace-nowrap">
+                <h2 class="font-display text-4xl md:text-6xl lg:text-7xl font-semibold text-white leading-tight whitespace-nowrap">
                     Your Market, Unlocked
                 </h2>
                 
-                <!-- Subtitle -->
-                <p class="text-base md:text-lg lg:text-xl text-slate-600 leading-relaxed max-w-3xl mx-auto font-body">
-                    Rival helps founders, operators and strategy teams understand their market at lightning speed. With AI-driven monitoring, Rival tracks your competitor field and surfaces key company updates as they happen.
+                <p class="text-base md:text-lg lg:text-xl text-white/90 leading-relaxed max-w-3xl mx-auto font-body">
+                    Rival helps founders, operators and strategy teams understand their market at lightning speed. With AI-driven monitoring, Rival tracks your rival field and surfaces key company updates as they happen.
                 </p>
                 
-                <!-- Loved by StarApps -->
                 <div class="flex items-center justify-center gap-2 pt-2">
-                    <span class="text-sm text-slate-500">Loved by</span>
-                    <a href="https://www.starapps.com/" target="_blank" rel="noopener" class="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors duration-200">
+                    <span class="text-sm text-white/70">Loved by</span>
+                    <a href="https://www.starapps.com/" target="_blank" rel="noopener" class="text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors duration-200">
                         StarApps
                     </a>
                 </div>
                 
-                <!-- CTA Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center pt-4">
-                    <a 
-                        href="{{ url_for('auth.signup') }}" 
-                        class="px-6 py-3 md:px-10 md:py-4 bg-primary-600 text-white font-medium text-base md:text-lg rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow text-center"
-                    >
+                    <a href="{{ url_for('auth.signup') }}" class="px-6 py-3 md:px-10 md:py-4 bg-primary-600 text-white font-medium text-base md:text-lg rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow text-center">
                         Get started
                     </a>
-                    <a 
-                        href="{{ url_for('auth.login') }}" 
-                        class="px-6 py-3 md:px-10 md:py-4 bg-white text-slate-900 font-medium text-base md:text-lg rounded-lg border border-slate-200 hover:bg-warm-100 transition-all duration-200 shadow-sm hover:shadow text-center"
-                    >
+                    <a href="{{ url_for('auth.login') }}" class="px-6 py-3 md:px-10 md:py-4 bg-white/10 backdrop-blur-sm text-white font-medium text-base md:text-lg rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-200 shadow-sm hover:shadow text-center">
                         Login
                     </a>
                 </div>
             </div>
         </div>
     </main>
+    
+    <!-- Loading Screen Script -->
+    <script>
+        (function() {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (!loadingScreen) return;
+            
+            let pageLoadStartTime = performance.now();
+            let minDisplayTime = 300;
+            let isHiding = false;
+            
+            loadingScreen.classList.remove('hidden', 'fade-out');
+            restartHandAnimation();
+            
+            function restartHandAnimation() {
+                const hand = loadingScreen.querySelector('.🤚');
+                if (hand) {
+                    const fingers = hand.querySelectorAll('.👉');
+                    fingers.forEach(function(finger) {
+                        finger.style.animation = 'none';
+                        void finger.offsetWidth;
+                        finger.style.animation = null;
+                    });
+                }
+            }
+            
+            function hideLoadingScreen() {
+                if (isHiding) return;
+                isHiding = true;
+                
+                const elapsed = performance.now() - pageLoadStartTime;
+                const remainingTime = Math.max(0, minDisplayTime - elapsed);
+                
+                setTimeout(function() {
+                    loadingScreen.classList.add('fade-out');
+                    setTimeout(function() {
+                        loadingScreen.classList.add('hidden');
+                    }, 500);
+                }, remainingTime);
+            }
+            
+            if (document.readyState === 'complete') {
+                hideLoadingScreen();
+            } else {
+                window.addEventListener('load', hideLoadingScreen);
+                if (document.readyState === 'interactive') {
+                    setTimeout(function() {
+                        if (!isHiding) {
+                            hideLoadingScreen();
+                        }
+                    }, 1000);
+                }
+            }
+            
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('a[href]');
+                if (link && link.href && !link.target && !link.hasAttribute('download')) {
+                    const currentHost = window.location.host;
+                    try {
+                        const linkUrl = new URL(link.href, window.location.href);
+                        if (linkUrl.host === currentHost || linkUrl.host === '') {
+                            loadingScreen.classList.remove('hidden', 'fade-out');
+                            restartHandAnimation();
+                        }
+                    } catch (e) {
+                        loadingScreen.classList.remove('hidden', 'fade-out');
+                        restartHandAnimation();
+                    }
+                }
+            });
+        })();
+    </script>
+    
+    <!-- Floating Lines Three.js Implementation -->
+    <script>
+        (function() {
+            const container = document.getElementById('floating-lines-container');
+            if (!container || typeof THREE === 'undefined') return;
+            
+            const config = {
+                enabledWaves: ['top', 'middle', 'bottom'],
+                lineCount: [2, 4, 2],
+                lineDistance: [10, 15, 10],
+                topWavePosition: { x: 8.0, y: 0.3, rotate: -0.3 },
+                middleWavePosition: { x: 4.0, y: 0.0, rotate: 0.15 },
+                bottomWavePosition: { x: 2.0, y: -0.5, rotate: 0.3 },
+                animationSpeed: 0.8,
+                interactive: true,
+                bendRadius: 5.0,
+                bendStrength: -0.5,
+                mouseDamping: 0.05,
+                parallax: true,
+                parallaxStrength: 0.2,
+                linesGradient: [
+                    '#5BA3F0', '#7B8FE8', '#9B7FD8', '#C87FD8',
+                    '#AB7FD8', '#8B8FE8', '#6BA3F0'
+                ]
+            };
+            
+            const vertexShader = `precision highp float; void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+            
+            const fragmentShader = `
+                precision highp float;
+                uniform float iTime;
+                uniform vec3 iResolution;
+                uniform float animationSpeed;
+                uniform bool enableTop, enableMiddle, enableBottom;
+                uniform int topLineCount, middleLineCount, bottomLineCount;
+                uniform float topLineDistance, middleLineDistance, bottomLineDistance;
+                uniform vec3 topWavePosition, middleWavePosition, bottomWavePosition;
+                uniform vec2 iMouse;
+                uniform bool interactive;
+                uniform float bendRadius, bendStrength, bendInfluence;
+                uniform bool parallax;
+                uniform float parallaxStrength;
+                uniform vec2 parallaxOffset;
+                uniform vec3 lineGradient[8];
+                uniform int lineGradientCount;
+                
+                mat2 rotate(float r) { return mat2(cos(r), sin(r), -sin(r), cos(r)); }
+                float glow(float dist, float radius) { return exp(-dist * dist / (2.0 * radius * radius)); }
+                
+                vec3 getLineColor(float t) {
+                    if (lineGradientCount <= 0) return vec3(0.0);
+                    float clampedT = clamp(t, 0.0, 0.9999);
+                    float scaled = clampedT * float(lineGradientCount - 1);
+                    int idx = int(floor(scaled));
+                    float f = fract(scaled);
+                    int idx2 = min(idx + 1, lineGradientCount - 1);
+                    return mix(lineGradient[idx], lineGradient[idx2], f) * 0.85;
+                }
+                
+                float wave(vec2 uv, float offset, vec2 screenUv, vec2 mouseUv, bool shouldBend) {
+                    float time = iTime * animationSpeed;
+                    float amp = sin(offset + time * 0.2) * 0.35;
+                    float y = sin(uv.x + offset + time * 0.1) * amp;
+                    y += sin(uv.x * 0.5 + offset + time * 0.07) * amp * 0.3;
+                    
+                    if (shouldBend) {
+                        vec2 d = screenUv - mouseUv;
+                        float influence = exp(-dot(d, d) * bendRadius);
+                        y += (mouseUv.y - screenUv.y) * influence * bendStrength * bendInfluence;
+                    }
+                    
+                    float dist = abs(uv.y - y);
+                    return 0.012 / max(dist + 0.01, 1e-4) + glow(dist, 0.05) * 0.12;
+                }
+                
+                void main() {
+                    vec2 baseUv = (2.0 * gl_FragCoord.xy - iResolution.xy) / iResolution.y;
+                    baseUv.y *= -1.0;
+                    if (parallax) baseUv += parallaxOffset;
+                    
+                    vec3 col = vec3(0.0);
+                    vec2 mouseUv = interactive ? (2.0 * iMouse - iResolution.xy) / iResolution.y : vec2(0.0);
+                    if (interactive) mouseUv.y *= -1.0;
+                    
+                    if (enableBottom) {
+                        for (int i = 0; i < bottomLineCount; ++i) {
+                            float fi = float(i);
+                            float t = fi / max(float(bottomLineCount - 1), 1.0);
+                            float angle = bottomWavePosition.z * log(length(baseUv) + 1.0);
+                            vec2 ruv = baseUv * rotate(angle);
+                            col += getLineColor(t) * wave(ruv + vec2(bottomLineDistance * fi + bottomWavePosition.x, bottomWavePosition.y), 1.5 + 0.2 * fi, baseUv, mouseUv, interactive) * 0.12;
+                        }
+                    }
+                    
+                    if (enableMiddle) {
+                        for (int i = 0; i < middleLineCount; ++i) {
+                            float fi = float(i);
+                            float t = fi / max(float(middleLineCount - 1), 1.0);
+                            float angle = middleWavePosition.z * log(length(baseUv) + 1.0);
+                            vec2 ruv = baseUv * rotate(angle);
+                            col += getLineColor(t) * wave(ruv + vec2(middleLineDistance * fi + middleWavePosition.x, middleWavePosition.y), 2.0 + 0.15 * fi, baseUv, mouseUv, interactive) * 0.6;
+                        }
+                    }
+                    
+                    if (enableTop) {
+                        for (int i = 0; i < topLineCount; ++i) {
+                            float fi = float(i);
+                            float t = fi / max(float(topLineCount - 1), 1.0);
+                            float angle = topWavePosition.z * log(length(baseUv) + 1.0);
+                            vec2 ruv = baseUv * rotate(angle);
+                            ruv.x *= -1.0;
+                            col += getLineColor(t) * wave(ruv + vec2(topLineDistance * fi + topWavePosition.x, topWavePosition.y), 1.0 + 0.2 * fi, baseUv, mouseUv, interactive) * 0.06;
+                        }
+                    }
+                    
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `;
+            
+            function hexToVec3(hex) {
+                let value = hex.trim();
+                if (value.startsWith('#')) value = value.slice(1);
+                let r = 255, g = 255, b = 255;
+                if (value.length === 3) {
+                    r = parseInt(value[0] + value[0], 16);
+                    g = parseInt(value[1] + value[1], 16);
+                    b = parseInt(value[2] + value[2], 16);
+                } else if (value.length === 6) {
+                    r = parseInt(value.slice(0, 2), 16);
+                    g = parseInt(value.slice(2, 4), 16);
+                    b = parseInt(value.slice(4, 6), 16);
+                }
+                return new THREE.Vector3(r / 255, g / 255, b / 255);
+            }
+            
+            const scene = new THREE.Scene();
+            const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+            camera.position.z = 1;
+            
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.domElement.style.width = '100%';
+            renderer.domElement.style.height = '100%';
+            container.appendChild(renderer.domElement);
+            
+            const getLineCount = (waveType) => {
+                if (!config.enabledWaves.includes(waveType)) return 0;
+                const index = config.enabledWaves.indexOf(waveType);
+                return Array.isArray(config.lineCount) ? (config.lineCount[index] ?? 6) : config.lineCount;
+            };
+            
+            const getLineDistance = (waveType) => {
+                if (!config.enabledWaves.includes(waveType)) return 0.1;
+                const index = config.enabledWaves.indexOf(waveType);
+                return (Array.isArray(config.lineDistance) ? (config.lineDistance[index] ?? 0.1) : config.lineDistance) * 0.01;
+            };
+            
+            const MAX_GRADIENT_STOPS = 8;
+            const gradientColors = config.linesGradient ? config.linesGradient.slice(0, MAX_GRADIENT_STOPS) : [];
+            
+            const uniforms = {
+                iTime: { value: 0 },
+                iResolution: { value: new THREE.Vector3(1, 1, 1) },
+                animationSpeed: { value: config.animationSpeed },
+                enableTop: { value: config.enabledWaves.includes('top') },
+                enableMiddle: { value: config.enabledWaves.includes('middle') },
+                enableBottom: { value: config.enabledWaves.includes('bottom') },
+                topLineCount: { value: getLineCount('top') },
+                middleLineCount: { value: getLineCount('middle') },
+                bottomLineCount: { value: getLineCount('bottom') },
+                topLineDistance: { value: getLineDistance('top') },
+                middleLineDistance: { value: getLineDistance('middle') },
+                bottomLineDistance: { value: getLineDistance('bottom') },
+                topWavePosition: { value: new THREE.Vector3(config.topWavePosition.x, config.topWavePosition.y, config.topWavePosition.rotate) },
+                middleWavePosition: { value: new THREE.Vector3(config.middleWavePosition.x, config.middleWavePosition.y, config.middleWavePosition.rotate) },
+                bottomWavePosition: { value: new THREE.Vector3(config.bottomWavePosition.x, config.bottomWavePosition.y, config.bottomWavePosition.rotate) },
+                iMouse: { value: new THREE.Vector2(-1000, -1000) },
+                interactive: { value: config.interactive },
+                bendRadius: { value: config.bendRadius },
+                bendStrength: { value: config.bendStrength },
+                bendInfluence: { value: 0 },
+                parallax: { value: config.parallax },
+                parallaxStrength: { value: config.parallaxStrength },
+                parallaxOffset: { value: new THREE.Vector2(0, 0) },
+                lineGradient: { value: Array.from({ length: MAX_GRADIENT_STOPS }, () => new THREE.Vector3(1, 1, 1)) },
+                lineGradientCount: { value: gradientColors.length }
+            };
+            
+            gradientColors.forEach((hex, i) => {
+                const color = hexToVec3(hex);
+                uniforms.lineGradient.value[i].set(color.x, color.y, color.z);
+            });
+            
+            const material = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vertexShader, fragmentShader: fragmentShader });
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+            
+            const targetMouse = new THREE.Vector2(-1000, -1000);
+            const currentMouse = new THREE.Vector2(-1000, -1000);
+            const targetInfluence = { value: 0 };
+            const currentInfluence = { value: 0 };
+            const targetParallax = new THREE.Vector2(0, 0);
+            const currentParallax = new THREE.Vector2(0, 0);
+            
+            const setSize = () => {
+                const width = container.clientWidth || 1;
+                const height = container.clientHeight || 1;
+                renderer.setSize(width, height, false);
+                uniforms.iResolution.value.set(renderer.domElement.width, renderer.domElement.height, 1);
+            };
+            
+            setSize();
+            const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(setSize) : null;
+            if (ro) ro.observe(container);
+            
+            const handlePointerMove = (event) => {
+                const rect = renderer.domElement.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+                    const dpr = renderer.getPixelRatio();
+                    targetMouse.set(x * dpr, (rect.height - y) * dpr);
+                    targetInfluence.value = 1.0;
+                    if (config.parallax) {
+                        const centerX = rect.width / 2;
+                        const centerY = rect.height / 2;
+                        targetParallax.set((x - centerX) / rect.width * config.parallaxStrength, -(y - centerY) / rect.height * config.parallaxStrength);
+                    }
+                }
+            };
+            
+            const handlePointerLeave = () => { targetInfluence.value = 0.0; };
+            
+            if (config.interactive) {
+                window.addEventListener('mousemove', handlePointerMove);
+                window.addEventListener('mouseleave', handlePointerLeave);
+                renderer.domElement.addEventListener('pointermove', handlePointerMove);
+                renderer.domElement.addEventListener('pointerleave', handlePointerLeave);
+            }
+            
+            const clock = new THREE.Clock();
+            let raf = 0;
+            
+            const renderLoop = () => {
+                uniforms.iTime.value = clock.getElapsedTime();
+                if (config.interactive) {
+                    currentMouse.lerp(targetMouse, config.mouseDamping);
+                    uniforms.iMouse.value.copy(currentMouse);
+                    currentInfluence.value += (targetInfluence.value - currentInfluence.value) * config.mouseDamping;
+                    uniforms.bendInfluence.value = currentInfluence.value;
+                }
+                if (config.parallax) {
+                    currentParallax.lerp(targetParallax, config.mouseDamping);
+                    uniforms.parallaxOffset.value.copy(currentParallax);
+                }
+                renderer.render(scene, camera);
+                raf = requestAnimationFrame(renderLoop);
+            };
+            
+            renderLoop();
+            
+            window.addEventListener('beforeunload', () => {
+                cancelAnimationFrame(raf);
+                if (ro) ro.disconnect();
+                if (config.interactive) {
+                    window.removeEventListener('mousemove', handlePointerMove);
+                    window.removeEventListener('mouseleave', handlePointerLeave);
+                    renderer.domElement.removeEventListener('pointermove', handlePointerMove);
+                    renderer.domElement.removeEventListener('pointerleave', handlePointerLeave);
+                }
+                geometry.dispose();
+                material.dispose();
+                renderer.dispose();
+            });
+        })();
+    </script>
 </body>
 </html>
