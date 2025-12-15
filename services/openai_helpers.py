@@ -3,7 +3,7 @@
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 try:
     from openai import OpenAI  # type: ignore
@@ -118,54 +118,6 @@ def chat_json(
     message = resp.choices[0].message if resp and resp.choices else None
     content = _strip_json(message.content if message and message.content else "")
     return _to_json(content)
-
-
-def chat_text(
-    *,
-    messages: Optional[List[dict]] = None,
-    system_prompt: str = "",
-    user_prompt: str = "",
-    model: str = "gpt-4o-mini",
-    temperature: float = 0.7,
-    max_tokens: int = 400,
-    context: str = "",
-) -> str:
-    """Voer een chat-completion uit en geef de ruwe tekst terug."""
-    client = get_openai_client()
-    if not client:
-        return ""
-    payload = list(messages or [])
-    if not payload:
-        if system_prompt:
-            payload.append({"role": "system", "content": system_prompt})
-        if user_prompt:
-            payload.append({"role": "user", "content": user_prompt})
-    try:
-        resp = client.chat.completions.create(model=model, messages=payload,  # type: ignore[arg-type]
-            temperature=temperature, max_tokens=max_tokens)
-    except Exception as exc:  # pragma: no cover
-        extra = f" for {context}" if context else ""
-        logger.warning("OpenAI chat text call failed%s: %s", extra, exc)
-        return ""
-    message = resp.choices[0].message if resp and resp.choices else None
-    return (message.content or "").strip() if message and message.content else ""
-
-
-def responses_json(
-    prompt: str,
-    *,
-    model: str = "gpt-4o",
-    tools: Optional[list] = None,
-    tool_choice: str = "auto",
-    context: str = "",
-) -> Optional[dict]:
-    """Run the Responses API (for web search, etc.) and parse JSON.
-    
-    Returns the parsed JSON from the model output.
-    For sources/citations, use responses_json_with_sources() instead.
-    """
-    result = responses_json_with_sources(prompt, model=model, tools=tools, tool_choice=tool_choice, context=context)
-    return result["data"] if result else None
 
 
 def responses_json_with_sources(

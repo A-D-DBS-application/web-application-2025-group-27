@@ -1,22 +1,27 @@
 """Service-functies voor externe bedrijfsdata.
 
 Deze module:
-- praat met de CompanyEnrich API voor basisvelden
 - gebruikt OpenAI om teamgrootte, beschrijving, funding en competitors op te halen
 - biedt eenvoudige helpers die door de rest van de app worden gebruikt
 """
 
-import json
-import os
 import re
 from typing import Dict, List, Optional, cast
 
 from services.openai_helpers import chat_json, responses_json_with_sources
 
-EMPTY_RESPONSE = {"name": None, "description": None, "employees": None, "industry": None, "country": None, "funding": None, "industries": []}
+EMPTY_RESPONSE = {
+    "name": None,
+    "description": None,
+    "employees": None,
+    "industry": None,
+    "country": None,
+    "funding": None,
+    "industries": [],
+}
 
 
-def _build_search_query(company_name: Optional[str], domain: Optional[str], context: str) -> Optional[str]:
+def _build_search_query(company_name: Optional[str], domain: Optional[str]) -> Optional[str]:
     """Combine company name and domain for prompts."""
     if not company_name and not domain:
         return None
@@ -76,46 +81,6 @@ def _fetch_numeric_value_with_web_search(
     return _parse_numeric_value(data.get(field_name), suffixes)
 
 
-def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
-    """Haal bedrijfsinformatie op via OpenAI (CompanyEnrich is verwijderd).
-
-    Deze functie:
-    - gebruikt alleen het domein als input
-    - vraagt teamgrootte, beschrijving en funding op via OpenAI
-    - vult ontbrekende velden met veilige defaults (EMPTY_RESPONSE)
-    """
-    if not domain:
-        return None
-    domain = _clean_domain(domain)
-    if not domain:
-        return None
-    
-    # Basisstructuur: we kennen het domein, de rest komt uit OpenAI.
-    basic_data: Dict[str, object] = {"domain": domain}
-    
-    # Gebruik OpenAI voor team size, description en funding.
-    company_name: Optional[str] = None
-    employees = fetch_openai_team_size(company_name=company_name, domain=domain)
-    description = fetch_openai_description(company_name=company_name, domain=domain)
-    # Voor public companies geeft dit de market cap terug.
-    funding = fetch_openai_funding(company_name=company_name, domain=domain)
-    
-    # Combineer alle data - OpenAI velden krijgen voorrang.
-    result = {
-        **basic_data,
-        "description": description,
-        "employees": employees,
-        "funding": funding,
-    }
-    
-    # Fill in defaults for missing fields
-    for key, default_value in EMPTY_RESPONSE.items():
-        if key not in result or result[key] is None:
-            result[key] = default_value
-    
-    return result
-
-
 def fetch_openai_similar_companies(company_name: Optional[str] = None, domain: Optional[str] = None, limit: int = 10, use_web_search: bool = False) -> List[Dict]:
     """Fetch similar companies/competitors using OpenAI API.
     
@@ -129,7 +94,7 @@ def fetch_openai_similar_companies(company_name: Optional[str] = None, domain: O
     Returns:
         List of competitor dictionaries with name, domain, website, industry, country
     """
-    search_query = _build_search_query(company_name, domain, "competitor")
+    search_query = _build_search_query(company_name, domain)
     if not search_query:
         return []
     
@@ -302,7 +267,7 @@ def fetch_openai_funding(company_name: Optional[str] = None, domain: Optional[st
     Returns:
         Funding amount or market cap as integer (in base currency units), or None if not found/fails
     """
-    search_query = _build_search_query(company_name, domain, "funding")
+    search_query = _build_search_query(company_name, domain)
     if not search_query:
         return None
     
@@ -341,7 +306,7 @@ For listed companies, always use market capitalization as it is more accurate an
     )
 
 
-def fetch_openai_team_size(company_name: Optional[str] = None, domain: Optional[str] = None, use_web_search: bool = False) -> Optional[int]:
+def fetch_openai_team_size(company_name: Optional[str] = None, domain: Optional[str] = None) -> Optional[int]:
     """Haal teamgrootte (aantal werknemers) op via OpenAI met web search.
     
     Args:
@@ -352,7 +317,7 @@ def fetch_openai_team_size(company_name: Optional[str] = None, domain: Optional[
     Returns:
         Number of employees as integer, or None if not found/fails
     """
-    search_query = _build_search_query(company_name, domain, "team size")
+    search_query = _build_search_query(company_name, domain)
     if not search_query:
         return None
     
@@ -381,7 +346,7 @@ Where employees is the total number of employees as an integer. Use null if the 
     )
 
 
-def fetch_openai_description(company_name: Optional[str] = None, domain: Optional[str] = None, use_web_search: bool = False) -> Optional[str]:
+def fetch_openai_description(company_name: Optional[str] = None, domain: Optional[str] = None) -> Optional[str]:
     """Haal een bedrijfsbeschrijving op via OpenAI met web search.
     
     Args:
@@ -392,7 +357,7 @@ def fetch_openai_description(company_name: Optional[str] = None, domain: Optiona
     Returns:
         Company description as string, or None if not found/fails
     """
-    search_query = _build_search_query(company_name, domain, "description")
+    search_query = _build_search_query(company_name, domain)
     if not search_query:
         return None
     

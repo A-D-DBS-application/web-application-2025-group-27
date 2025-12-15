@@ -134,7 +134,13 @@ def add_competitor_from_data(company: Company, comp_data: dict) -> Optional[Comp
 
 
 def refresh_competitors(company: Company) -> None:
-    """Replace competitor links with fresh OpenAI results using web search for current competitive data."""
+    """Replace competitor links with fresh OpenAI results using web search for current competitive data.
+
+    We:
+    - verwijderen eerst alle bestaande competitor-links voor deze company
+    - vragen tot 10 mogelijke rivals op via OpenAI met web search
+    - linken vervolgens maximaal 5 nieuwe rivals (met een ander domein dan de eigen company)
+    """
     if not company or not company.domain:
         return
     db.session.query(CompanyCompetitor).filter(CompanyCompetitor.company_id == company.id).delete()

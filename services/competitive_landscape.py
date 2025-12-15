@@ -6,13 +6,12 @@ from models import Company
 from services.openai_helpers import responses_json_with_sources
 
 
-def generate_competitive_landscape(company: Company, competitors: List[Company], use_web_search: bool = False) -> Optional[str]:
+def generate_competitive_landscape(company: Company, competitors: List[Company]) -> Optional[str]:
     """Genereer een korte markt- en concurrentiesamenvatting voor een company.
 
     Args:
         company: het bedrijf waarvoor we de landscape maken
         competitors: lijst van competitor-companies
-        use_web_search: of web search gebruikt mag worden voor extra context
 
     Returns:
         Een tekstuele samenvatting van de competitive landscape, of None.
