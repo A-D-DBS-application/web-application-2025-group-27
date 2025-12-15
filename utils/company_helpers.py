@@ -1,4 +1,4 @@
-"""Company helper utilities - data retrieval and enrichment."""
+"""Helperfuncties voor company-data: ophalen, enrichment en relaties."""
 
 import logging
 from typing import List, Optional
@@ -8,14 +8,10 @@ from sqlalchemy import func, or_
 from app import db
 from models import Company, CompanyCompetitor
 from services.company_api import (
-    apply_company_data,
-    fetch_company_info,
     fetch_openai_description,
     fetch_openai_funding,
     fetch_openai_similar_companies,
     fetch_openai_team_size,
-    link_company_industries,
-    needs_api_fetch,
 )
 from services.competitive_landscape import generate_competitive_landscape
 
@@ -37,15 +33,6 @@ def get_company_industries(company: Company) -> List:
 def get_company_competitors(company: Company) -> List[Company]:
     """Get list of competitor Company objects."""
     return _collect_related(company, "competitors", "competitor")
-
-
-def _apply_company_enrich(company: Company, domain: Optional[str]) -> None:
-    if not domain or not needs_api_fetch(company, domain):
-        return
-    api_data = fetch_company_info(domain=domain)
-    if api_data:
-        apply_company_data(company, api_data)
-        link_company_industries(company, api_data.get("industries", []))
 
 
 def _apply_openai_overrides(company: Company, company_name: Optional[str], company_domain: Optional[str]) -> None:
@@ -73,11 +60,10 @@ def _apply_openai_overrides(company: Company, company_name: Optional[str], compa
 
 
 def enrich_company_if_needed(company: Company, domain: Optional[str] = None) -> None:
-    """Enrich company data from API if needed. Always uses OpenAI for team size, description, and funding."""
+    """Verrijk company-data via OpenAI (team size, beschrijving, funding)."""
     if not company:
         return
     target_domain = domain or company.domain
-    _apply_company_enrich(company, target_domain)
     _apply_openai_overrides(company, company.name, target_domain or company.domain)
 
 
@@ -93,24 +79,30 @@ def _upsert_competitor(comp_data: dict) -> Optional[Company]:
     comp_domain = comp_data.get("domain")
     if not comp_domain:
         return None
+    
     comp_name = comp_data.get("name") or "Unknown"
     competitor = db.session.query(Company).filter(or_(
         Company.domain == comp_domain, func.lower(Company.name) == comp_name.lower()
     )).first()
+    
     if not competitor:
         competitor = Company()
         competitor.name = comp_name
         competitor.domain = comp_domain
-        competitor.website = comp_data.get("website")
-        competitor.headline = comp_data.get("description")
-        competitor.industry = comp_data.get("industry")
         db.session.add(competitor)
         db.session.flush()
-    else:
-        for field, val in [("domain", comp_domain), ("website", comp_data.get("website")),
-                           ("headline", comp_data.get("description")), ("industry", comp_data.get("industry"))]:
-            if val and not getattr(competitor, field):
-                setattr(competitor, field, val)
+    
+    # Update fields only if not already set
+    field_map = {
+        "domain": comp_domain,
+        "website": comp_data.get("website"),
+        "headline": comp_data.get("description"),
+        "industry": comp_data.get("industry")
+    }
+    for field, val in field_map.items():
+        if val and not getattr(competitor, field):
+            setattr(competitor, field, val)
+    
     return competitor
 
 
@@ -142,12 +134,13 @@ def add_competitor_from_data(company: Company, comp_data: dict) -> Optional[Comp
 
 
 def refresh_competitors(company: Company) -> None:
-    """Replace competitor links with fresh OpenAI results."""
+    """Replace competitor links with fresh OpenAI results using web search for current competitive data."""
     if not company or not company.domain:
         return
     db.session.query(CompanyCompetitor).filter(CompanyCompetitor.company_id == company.id).delete()
     db.session.flush()
-    similar = fetch_openai_similar_companies(company_name=company.name, domain=company.domain, limit=10)
+    # Use web search for current competitive landscape data (explicit refresh)
+    similar = fetch_openai_similar_companies(company_name=company.name, domain=company.domain, limit=10, use_web_search=True)
     base_domain = (company.domain or "").lower().strip()
     for comp_data in similar[:5]:
         comp_domain = (comp_data.get("domain") or "").lower().strip()
@@ -166,6 +159,7 @@ def generate_landscape_if_needed(company: Company) -> None:
         return
     try:
         with db.session.begin_nested():
-            company.competitive_landscape = generate_competitive_landscape(company, competitors) or DEFAULT_LANDSCAPE
+            landscape = generate_competitive_landscape(company, competitors)
+            company.competitive_landscape = landscape or DEFAULT_LANDSCAPE
     except Exception:
         company.competitive_landscape = DEFAULT_LANDSCAPE

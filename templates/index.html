@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_signal_macros.html" import signal_card, whatsapp_share_button, severity_badge %}
+{% from "_signal_macros.html" import signal_card, whatsapp_share_button, severity_badge, news_item %}
 
 {% block title %}{{ company.name if company else "Workspace" }} Workspace{% endblock %}
 
@@ -388,6 +388,22 @@
 <div id="content-signals" class="tab-content hidden">
 {% if company %}
 
+<!-- Sub-tabs: Signals vs News -->
+<div class="mb-6">
+    <div class="flex items-center gap-3 border-b border-slate-200">
+        <button onclick="showSignalsSubTab('signals')" id="subtab-signals" class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors duration-200 bg-slate-900 text-white border-b-2 border-slate-900">
+            <i data-lucide="bell" class="w-4 h-4 inline mr-2"></i>
+            Signals
+        </button>
+        <button onclick="showSignalsSubTab('news')" id="subtab-news" class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors duration-200 bg-slate-100 text-slate-700 hover:bg-slate-200 border-b-2 border-transparent">
+            <i data-lucide="newspaper" class="w-4 h-4 inline mr-2"></i>
+            Recent News ({{ all_related_news|length if all_related_news else 0 }})
+        </button>
+    </div>
+</div>
+
+<!-- Signals Sub-tab Content -->
+<div id="signals-subtab-content" class="subtab-content">
 <div class="mb-8">
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <section>
@@ -404,7 +420,7 @@
                 </form>
             </div>
             
-            {% if signals %}
+            {% if signals_by_category.hiring or signals_by_category.product or signals_by_category.funding %}
             <div class="space-y-8">
                 <!-- Hiring Signals -->
                 <div>
@@ -483,6 +499,36 @@
             {% endif %}
         </section>
     </div>
+</div>
+</div>
+
+<!-- Recent News Sub-tab Content -->
+<div id="news-subtab-content" class="subtab-content hidden">
+<div class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        {% if all_related_news %}
+        <div class="space-y-4">
+            {% for news in all_related_news %}
+            {{ news_item(news, show_competitor_link=False) }}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-slate-50 rounded-lg p-8 text-center border border-slate-200">
+            <div class="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="newspaper" class="w-8 h-8 text-blue-600"></i>
+            </div>
+            <h3 class="font-display text-lg font-semibold text-slate-900 mb-2">No Recent News Yet</h3>
+            <p class="text-slate-600 text-sm mb-4">News articles from web search will appear here when new signals are generated with related news.</p>
+            <form action="{{ url_for('main.refresh_signals') }}" method="POST" class="inline">
+                <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    <span>Refresh Signals</span>
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
 </div>
 
 <!-- Rival Profiles Section -->
@@ -626,6 +672,48 @@ function handleRefreshSubmit(form, loadingText) {
     btn.style.cursor = 'wait';
 }
 
+function showSignalsSubTab(subTabName) {
+    // Hide all sub-tab contents
+    document.querySelectorAll('.subtab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Remove active state from all sub-tabs
+    document.querySelectorAll('#subtab-signals, #subtab-news').forEach(button => {
+        button.classList.remove('bg-slate-900', 'text-white', 'border-slate-900');
+        button.classList.add('bg-slate-100', 'text-slate-700', 'border-transparent');
+    });
+    
+    // Show selected sub-tab content
+    const contentId = subTabName + '-subtab-content';
+    const content = document.getElementById(contentId);
+    if (content) {
+        content.classList.remove('hidden');
+    }
+    
+    // Activate selected sub-tab button
+    const buttonId = 'subtab-' + subTabName;
+    const button = document.getElementById(buttonId);
+    if (button) {
+        button.classList.remove('bg-slate-100', 'text-slate-700', 'border-transparent');
+        button.classList.add('bg-slate-900', 'text-white', 'border-slate-900');
+    }
+    
+    // Re-initialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
+    // Ensure chevrons are closed when signals sub-tab is shown
+    if (subTabName === 'signals') {
+        const categoryChevrons = document.querySelectorAll('.category-chevron');
+        categoryChevrons.forEach(chevron => {
+            chevron.style.transition = 'transform 0.2s ease-in-out';
+            chevron.style.transform = 'rotate(0deg)';
+        });
+    }
+}
+
 function showTab(tabName) {
     // Hide all tab contents
     document.querySelectorAll('.tab-content').forEach(content => {
@@ -649,6 +737,15 @@ function showTab(tabName) {
     // Re-initialize Lucide icons for newly visible content
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
+    }
+    
+    // If signals tab is shown, ensure chevrons are closed
+    if (tabName === 'signals') {
+        const categoryChevrons = document.querySelectorAll('.category-chevron');
+        categoryChevrons.forEach(chevron => {
+            chevron.style.transition = 'transform 0.2s ease-in-out';
+            chevron.style.transform = 'rotate(0deg)';
+        });
     }
 }
 
@@ -697,6 +794,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const categoryChevrons = document.querySelectorAll('.category-chevron');
     categoryChevrons.forEach(chevron => {
         chevron.style.transition = 'transform 0.2s ease-in-out';
+        // Set all chevrons to closed (0deg) by default
+        chevron.style.transform = 'rotate(0deg)';
     });
     
     // Animate counting numbers

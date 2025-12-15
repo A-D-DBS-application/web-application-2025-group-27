@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_signal_macros.html" import signal_card, whatsapp_share_button, severity_badge %}
+{% from "_signal_macros.html" import signal_card, whatsapp_share_button, severity_badge, news_item %}
 
 {% block title %}Rival Signals - {{ company.name }}{% endblock %}
 
@@ -25,18 +25,59 @@
     </div>
 </div>
 
+<!-- Tabs: Signals vs News -->
+<div class="mb-6">
+    <div class="flex items-center gap-3 border-b border-slate-200">
+        <a href="{{ url_for('main.signals_page', view='signals') }}" class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors duration-200 {% if (view_mode or 'signals') == 'signals' %}bg-slate-900 text-white border-b-2 border-slate-900{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+            <i data-lucide="bell" class="w-4 h-4 inline mr-2"></i>
+            Signals
+        </a>
+        <a href="{{ url_for('main.signals_page', view='news') }}" class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors duration-200 {% if view_mode == 'news' %}bg-slate-900 text-white border-b-2 border-slate-900{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+            <i data-lucide="newspaper" class="w-4 h-4 inline mr-2"></i>
+            Recent News ({{ all_related_news|length if all_related_news else 0 }})
+        </a>
+    </div>
+</div>
+
+{% if (view_mode or 'signals') == 'news' %}
+<!-- News View -->
+{% if all_related_news %}
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <div class="space-y-4">
+        {% for news in all_related_news %}
+        {{ news_item(news, show_competitor_link=True) }}
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+    <div class="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="newspaper" class="w-8 h-8 text-blue-600"></i>
+    </div>
+    <h3 class="font-display text-lg font-semibold text-slate-900 mb-2">No Recent News Yet</h3>
+    <p class="text-slate-600 text-sm mb-4">News articles from web search will appear here when new signals are generated with related news.</p>
+    <form action="{{ url_for('main.refresh_signals') }}" method="POST" class="inline" id="check-news-form">
+        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            <span>Refresh Signals</span>
+        </button>
+    </form>
+</div>
+{% endif %}
+{% else %}
+<!-- Signals View -->
 <!-- Category Filters -->
 <div class="mb-6 flex items-center gap-3">
-    <a href="{{ url_for('main.signals_page') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if not category_filter %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+    <a href="{{ url_for('main.signals_page', view='signals') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if not category_filter %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
         All
     </a>
-    <a href="{{ url_for('main.signals_page', category='hiring') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if category_filter == 'hiring' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+    <a href="{{ url_for('main.signals_page', view='signals', category='hiring') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if category_filter == 'hiring' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
         Hiring ({{ signals_by_category.hiring|length }})
     </a>
-    <a href="{{ url_for('main.signals_page', category='product') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if category_filter == 'product' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+    <a href="{{ url_for('main.signals_page', view='signals', category='product') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if category_filter == 'product' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
         Product ({{ signals_by_category.product|length }})
     </a>
-    <a href="{{ url_for('main.signals_page', category='funding') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if category_filter == 'funding' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+    <a href="{{ url_for('main.signals_page', view='signals', category='funding') }}" class="px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 {% if category_filter == 'funding' %}bg-slate-900 text-white{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
         Funding ({{ signals_by_category.funding|length }})
     </a>
 </div>
@@ -47,56 +88,7 @@
 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
     <div class="space-y-4">
         {% for sig in signals %}
-        <div class="bg-slate-50 rounded-lg p-5 border border-slate-200">
-            <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-3">
-                    <h3 class="text-lg font-semibold text-slate-900">
-                        {% if sig.source_url %}
-                        <a href="{{ sig.source_url }}" target="_blank" rel="noopener noreferrer" class="hover:text-primary-600 hover:underline transition-colors duration-200">
-                            {{ sig.message }}
-                        </a>
-                        {% elif sig.competitor %}
-                        <a href="https://www.google.com/search?q={{ (sig.competitor.name + ' ' + sig.message)|urlencode }}" target="_blank" rel="noopener noreferrer" class="hover:text-primary-600 hover:underline transition-colors duration-200">
-                            {{ sig.message }}
-                        </a>
-                        {% else %}
-                        {{ sig.message }}
-                        {% endif %}
-                    </h3>
-                    <!-- Category Badge -->
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                        {% if sig.category == 'hiring' %}
-                            bg-blue-50 text-blue-700 border border-blue-200
-                        {% elif sig.category == 'product' %}
-                            bg-purple-50 text-purple-700 border border-purple-200
-                        {% elif sig.category == 'funding' %}
-                            bg-green-50 text-green-700 border border-green-200
-                        {% else %}
-                            bg-slate-100 text-slate-600 border border-slate-200
-                        {% endif %}">
-                        {{ sig.category|title if sig.category else 'Other' }}
-                    </span>
-                </div>
-                <div class="flex items-center gap-2">
-                    {{ whatsapp_share_button(sig) }}
-                    {{ severity_badge(sig.severity) }}
-                </div>
-            </div>
-            {% if sig.competitor %}
-            <p class="text-xs text-slate-500 mb-2">
-                <i data-lucide="building-2" class="w-3 h-3 inline mr-1"></i>
-                Rival: <a href="{{ url_for('main.competitor_detail', competitor_id=sig.competitor_id) }}" class="text-blue-600 hover:underline">{{ sig.competitor.name }}</a>
-            </p>
-            {% endif %}
-            <p class="text-slate-600 text-sm leading-relaxed">
-                {{ sig.details }}
-            </p>
-            {% if sig.created_at %}
-            <p class="mt-2 text-xs text-slate-500">
-                Detected on {{ sig.created_at.strftime('%Y-%m-%d at %H:%M') }}
-            </p>
-            {% endif %}
-        </div>
+        {{ signal_card(sig) }}
         {% endfor %}
     </div>
 </div>
@@ -170,6 +162,7 @@
     </form>
 </div>
 {% endif %}
+{% endif %}
 
 <script>
 // Handle refresh button loading state
@@ -187,7 +180,7 @@ function handleRefreshSubmit(form) {
 }
 
 // Attach to forms
-['refresh-signals-form', 'check-signals-form'].forEach(function(formId) {
+['refresh-signals-form', 'check-signals-form', 'check-news-form'].forEach(function(formId) {
     const form = document.getElementById(formId);
     if (form) {
         form.addEventListener('submit', function() {

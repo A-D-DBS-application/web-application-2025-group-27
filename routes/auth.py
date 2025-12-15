@@ -1,4 +1,6 @@
-"""Authentication routes - login, signup, logout."""
+"""Authenticatie routes - login, signup en logout.
+
+"""
 
 from typing import List, Optional, cast
 
@@ -15,18 +17,25 @@ auth_bp = Blueprint("auth", __name__)
 
 
 def _redirect_authenticated():
+    """Stuur ingelogde gebruikers altijd naar het dashboard.
+
+    Dit voorkomt dat een ingelogde gebruiker opnieuw het login- of
+    signup-scherm ziet. Als niemand is ingelogd, gebeurt er niets.
+    """
     if getattr(g, "current_user", None):
         return redirect(url_for("main.homepage"))
     return None
 
 
 def _render_login(error: Optional[str] = None):
+    """Toon de loginpagina, met optionele foutboodschap."""
     if error:
         flash(error, "error")
     return render_template("login.html")
 
 
 def _render_signup(errors: Optional[List[str]] = None):
+    """Toon de signuppagina, met optionele lijst van foutboodschappen."""
     if errors:
         for message in errors:
             flash(message, "error")
@@ -39,18 +48,31 @@ def _render_signup(errors: Optional[List[str]] = None):
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-    """Handle user login."""
+    """Verwerk login van een gebruiker.
+
+    GET:
+        - toont enkel het loginformulier
+    POST:
+        - leest het e-mailadres
+        - zoekt de gebruiker in de database
+        - controleert of de gebruiker actief is
+        - logt de gebruiker in
+        - triggert een niet-blockende refresh van competitor signals
+    """
     redirect_resp = _redirect_authenticated()
     if redirect_resp:
         return redirect_resp
     
+    # GET: toon simpelweg het formulier
     if request.method != "POST":
         return _render_login()
     
+    # POST: lees en valideer het e-mailadres
     email = request.form.get("email", "").strip().lower()
     if not email:
         return _render_login("Email is required.")
     
+    # Zoek de gebruiker met dit e-mailadres (en gekoppelde company)
     user = (
         db.session.query(User)
         .filter(func.lower(User.email) == email, User.company_id.isnot(None))
@@ -58,23 +80,28 @@ def login():
     )
     
     if not user:
+        # E-mailadres bestaat niet in het systeem
         return _render_login("User not found. Please sign up first.")
     
     if not user.is_active:
+        # Account is gedeactiveerd
         return _render_login("Account is disabled.")
     
-    # Log in the user
+    # Log de gebruiker in (zet sessie + g.current_user / g.current_company)
     login_user(user)
     
-    # Refresh competitor signals on login
+    # Probeer competitor signals te verversen bij login.
+    # Dit gebeurt in de achtergrond: fouten blokkeren de login niet.
     company_obj = cast(Optional[Company], getattr(user, "company", None))
     if company_obj:
         from services.signals import refresh_competitor_signals
         try:
             refresh_competitor_signals(company_obj)
         except Exception:
-            pass  # Don't block login if signal refresh fails
+            # Login mag nooit falen door een fout in AI/websearch.
+            pass
     
+    # Na een geslaagde login altijd naar het dashboard (of "next" parameter)
     return redirect(request.args.get("next") or url_for("main.homepage"))
 
 
@@ -84,15 +111,28 @@ def login():
 
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def signup():
-    """Handle user registration and company creation."""
+    """Registreer een nieuwe gebruiker en maak eventueel een nieuw bedrijf aan.
+
+    GET:
+        - toont enkel het signupformulier
+    POST:
+        - valideert alle verplichte velden
+        - zoekt of maakt een Company record
+        - verrijkt de company met externe data (niet-blockend)
+        - zoekt en voegt concurrenten toe (niet-blockend)
+        - genereert een eerste competitive landscape (niet-blockend)
+        - maakt de User aan en logt die in
+        - triggert een eerste signal-refresh (niet-blockend)
+    """
     redirect_resp = _redirect_authenticated()
     if redirect_resp:
         return redirect_resp
     
+    # GET: toon simpelweg het formulier
     if request.method != "POST":
         return _render_signup()
     
-    # Collect form data
+    # 1. Lees alle formulierdata in en maak strings schoon.
     first_name = request.form.get("first_name", "").strip()
     last_name = request.form.get("last_name", "").strip()
     email = request.form.get("email", "").strip().lower()
@@ -100,21 +140,22 @@ def signup():
     company_domain = request.form.get("company_domain", "").strip().lower()
     role = request.form.get("role", "").strip() or None
     
-    # Validate required fields
+    # 2. Controleer alle verplichte velden.
     required = {"first_name": "First name", "last_name": "Last name", "email": "Email",
                 "company_name": "Company name", "company_domain": "Company domain"}
     errors = [f"{label} is required." for field, label in required.items() if not request.form.get(field, "").strip()]
     
-    # Check for existing email
+    # 3. Controleer of het e-mailadres al bestaat.
     if not errors:
         existing = db.session.query(User).filter(func.lower(User.email) == email).first()
         if existing:
             errors.append("Email already exists. Please log in instead.")
     
     if errors:
+        # Toon het formulier opnieuw met foutboodschappen.
         return _render_signup(errors)
     
-    # Find or create company
+    # 4. Zoek een bestaande company of maak er één aan.
     company = db.session.query(Company).filter(Company.name.ilike(company_name)).first()
     if not company:
         company = Company()
@@ -123,31 +164,30 @@ def signup():
         db.session.add(company)
         db.session.flush()
     
-    # Enrich company data and fetch competitors (don't fail signup if these fail)
-    try:
-        enrich_company_if_needed(company, company_domain)
-    except Exception:
-        pass
+    # 5. Verrijk company data en haal concurrenten op.
+    #    Deze stappen zijn belangrijk, maar mogen de signup nooit breken.
+    def _safe_call(func, *args, **kwargs):
+        """Voer een functie uit zonder dat fouten de signup blokkeren."""
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            return None
     
-    try:
-        similar = fetch_openai_similar_companies(company_name=company_name, domain=company_domain, limit=10)
+    _safe_call(enrich_company_if_needed, company, company_domain)
+    
+    similar = _safe_call(fetch_openai_similar_companies, company_name=company_name, domain=company_domain, limit=10)
+    if similar:
         base_domain = (company_domain or "").lower().strip()
         for comp_data in similar[:5]:
             comp_domain = (comp_data.get("domain") or "").lower().strip()
             if comp_domain and comp_domain != base_domain:
-                add_competitor_from_data(company, comp_data)
-    except Exception:
-        pass
+                _safe_call(add_competitor_from_data, company, comp_data)
     
     db.session.flush()
     db.session.refresh(company)
+    _safe_call(generate_landscape_if_needed, company)
     
-    try:
-        generate_landscape_if_needed(company)
-    except Exception:
-        pass
-    
-    # Create user
+    # 6. Maak de gebruiker aan in de database.
     user = User()
     user.email = email
     user.first_name = first_name
@@ -158,14 +198,12 @@ def signup():
     db.session.add(user)
     db.session.commit()
     
+    # 7. Log de gebruiker meteen in.
     login_user(user)
     
-    # Initialize competitor signals on signup
+    # 8. Initialiseer competitor signals (opnieuw niet-blockend).
     from services.signals import refresh_competitor_signals
-    try:
-        refresh_competitor_signals(company)
-    except Exception:
-        pass
+    _safe_call(refresh_competitor_signals, company)
     
     return redirect(url_for("main.homepage"))
 

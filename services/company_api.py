@@ -1,14 +1,17 @@
+"""Service-functies voor externe bedrijfsdata.
+
+Deze module:
+- praat met de CompanyEnrich API voor basisvelden
+- gebruikt OpenAI om teamgrootte, beschrijving, funding en competitors op te halen
+- biedt eenvoudige helpers die door de rest van de app worden gebruikt
+"""
+
 import json
 import os
 import re
-import urllib.parse
-import urllib.request
-from datetime import datetime
 from typing import Dict, List, Optional, cast
 
-from app import db
-from models import Company, CompanyIndustry, Industry
-from services.openai_helpers import chat_json
+from services.openai_helpers import chat_json, responses_json_with_sources
 
 EMPTY_RESPONSE = {"name": None, "description": None, "employees": None, "industry": None, "country": None, "funding": None, "industries": []}
 
@@ -26,13 +29,6 @@ def _clean_domain(domain: str) -> str:
         return ""
     d = domain.lower().strip()
     return d[4:] if d.startswith("www.") else d
-
-
-def _parse_country(data: Dict) -> Optional[str]:
-    val = data.get("country") or data.get("headquarters_country") or (data.get("location", {}) or {}).get("country")
-    if isinstance(val, dict):
-        return val.get("name") or val.get("code")
-    return val if isinstance(val, str) else None
 
 
 def _parse_numeric_value(value, suffix_multipliers: Dict[str, int]) -> Optional[int]:
@@ -57,92 +53,59 @@ def _parse_numeric_value(value, suffix_multipliers: Dict[str, int]) -> Optional[
     return None
 
 
-def _fetch_numeric_value(
+def _fetch_numeric_value_with_web_search(
     *,
     search_query: str,
     prompt: str,
-    system_prompt: str,
     field_name: str,
     suffixes: Dict[str, int],
     log_label: str,
-    temperature: float = 0.1,
-    max_tokens: int = 200,
 ) -> Optional[int]:
-    """Fetch and parse a numeric value from OpenAI."""
-    data = chat_json(
-        system_prompt=system_prompt,
-        user_prompt=prompt,
-        model="gpt-4o",
-        temperature=temperature,
-        max_tokens=max_tokens,
+    """Haal een numerieke waarde op via OpenAI Responses API met web search."""
+    result = responses_json_with_sources(
+        prompt,
+        tools=[{"type": "web_search"}],
+        tool_choice="auto",
         context=f"{log_label} for {search_query}",
     )
-    if not data:
+    if not result or "data" not in result:
+        return None
+    data = result["data"]
+    if not isinstance(data, dict):
         return None
     return _parse_numeric_value(data.get(field_name), suffixes)
 
 
 def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
-    """Fetch company information using Company Enrich API for basic fields ONLY. OpenAI is used for team size, description, and funding."""
+    """Haal bedrijfsinformatie op via OpenAI (CompanyEnrich is verwijderd).
+
+    Deze functie:
+    - gebruikt alleen het domein als input
+    - vraagt teamgrootte, beschrijving en funding op via OpenAI
+    - vult ontbrekende velden met veilige defaults (EMPTY_RESPONSE)
+    """
     if not domain:
         return None
     domain = _clean_domain(domain)
     if not domain:
         return None
     
-    # First, try to get basic info from Company Enrich API (name, website, industry, country, industries)
-    # NOTE: We do NOT use Company Enrich for description, employees, or funding - those come from OpenAI
-    api_key = os.getenv("COMPANY_ENRICH_API_KEY")
+    # Basisstructuur: we kennen het domein, de rest komt uit OpenAI.
     basic_data: Dict[str, object] = {"domain": domain}
     
-    if api_key and api_key != "your-api-key-here":
-        url = f"https://api.companyenrich.com/companies/enrich?domain={urllib.parse.quote(domain)}"
-        try:
-            req = urllib.request.Request(url)
-            req.add_header("Authorization", f"Bearer {api_key}")
-            req.add_header("Accept", "application/json")
-            
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                if resp.status == 200:
-                    data = json.loads(resp.read().decode('utf-8'))
-                    updated_at = None
-                    if data.get("updated_at"):
-                        try:
-                            updated_at = datetime.fromisoformat(data["updated_at"].replace('Z', '+00:00'))
-                        except (ValueError, AttributeError):
-                            pass
-                    
-                    # ONLY extract basic fields - NOT description, employees, or funding
-                    basic_data.update({
-                        "name": data.get("name"),
-                        "website": data.get("website"),
-                        "industry": data.get("industry") or (data.get("industries")[0] if data.get("industries") else None),
-                        "country": _parse_country(data),
-                        "updated_at": updated_at,
-                        "industries": data.get("industries", []),
-                    })
-        except Exception:
-            pass  # Continue with OpenAI calls even if Company Enrich fails
-    
-    # ALWAYS use OpenAI for team size, description, and funding (never use Company Enrich for these)
-    company_name = cast(Optional[str], basic_data.get("name"))
-    
-    # Fetch team size from OpenAI (replaces Company Enrich)
+    # Gebruik OpenAI voor team size, description en funding.
+    company_name: Optional[str] = None
     employees = fetch_openai_team_size(company_name=company_name, domain=domain)
-    
-    # Fetch description from OpenAI (replaces Company Enrich)
     description = fetch_openai_description(company_name=company_name, domain=domain)
-    
-    # Fetch funding/market cap from OpenAI (replaces Company Enrich)
-    # For public companies, this returns market capitalization
+    # Voor public companies geeft dit de market cap terug.
     funding = fetch_openai_funding(company_name=company_name, domain=domain)
     
-    # Combine all data - OpenAI fields take precedence
+    # Combineer alle data - OpenAI velden krijgen voorrang.
     result = {
         **basic_data,
-        "description": description,  # From OpenAI only
-        "employees": employees,      # From OpenAI only
-        "funding": funding,           # From OpenAI only (market cap for public companies)
+        "description": description,
+        "employees": employees,
+        "funding": funding,
     }
     
     # Fill in defaults for missing fields
@@ -153,7 +116,7 @@ def fetch_company_info(domain: Optional[str] = None) -> Optional[Dict]:
     return result
 
 
-def fetch_openai_similar_companies(company_name: Optional[str] = None, domain: Optional[str] = None, limit: int = 10) -> List[Dict]:
+def fetch_openai_similar_companies(company_name: Optional[str] = None, domain: Optional[str] = None, limit: int = 10, use_web_search: bool = False) -> List[Dict]:
     """Fetch similar companies/competitors using OpenAI API.
     
     This replaces Company Enrich API for more accurate competitor identification.
@@ -206,14 +169,57 @@ Requirements:
 - Do NOT include subsidiaries, resellers, or small regional players
 - Use null for any field if information is not available"""
 
-    data = chat_json(
-        system_prompt="You are a helpful assistant that provides accurate competitor information. You must always respond with valid JSON only, no additional text.",
-        user_prompt=prompt,
-        model="gpt-4o",
-        temperature=0.3,
-        max_tokens=2000,
-        context=f"competitors for {search_query}",
-    )
+    data = None
+    
+    # Only use web search if explicitly requested (for performance)
+    if use_web_search:
+        web_prompt = f"""Research the competitive landscape for "{search_query}" and identify their main competitors.
+
+Search the web for recent information about:
+1. Direct competitors in the same market
+2. Companies offering similar products or services
+3. Recent competitive developments or market shifts
+4. Well-established competitors of similar scale
+
+Based on your research, return a JSON object with a "competitors" array. Each competitor should have:
+- name: Company name
+- domain: Main domain (e.g., "apple.com" not "www.apple.com")
+- website: Full website URL with https://
+- industry: Primary industry
+- country: Country where headquartered
+
+Only include major, well-established competitors of similar scale.
+Do NOT include the company itself, subsidiaries, resellers, or small regional players.
+Use null for any field if information is not available.
+
+Return valid JSON in this format:
+{{
+    "competitors": [
+        {{"name": "...", "domain": "...", "website": "...", "industry": "...", "country": "..."}},
+        ...
+    ]
+}}"""
+
+        web_result = responses_json_with_sources(
+            web_prompt,
+            tools=[{"type": "web_search"}],
+            tool_choice="auto",
+            context=f"competitors for {search_query}"
+        )
+        
+        if web_result and web_result.get("data"):
+            data = web_result.get("data")
+    
+    # Fallback to regular chat if web search didn't work or wasn't requested
+    if not data:
+        data = chat_json(
+            system_prompt="You are a helpful assistant that provides accurate competitor information. You must always respond with valid JSON only, no additional text.",
+            user_prompt=prompt,
+            model="gpt-4o",
+            temperature=0.3,
+            max_tokens=2000,
+            context=f"competitors for {search_query}",
+        )
     if not data:
         return []
     
@@ -247,10 +253,10 @@ Requirements:
 
 
 def apply_company_data(company, api_data: Dict) -> None:
-    """Apply company data from API response using SQLAlchemy ORM.
-    
-    Note: OpenAI fields (description, employees, funding) are ALWAYS applied,
-    even if they already exist, to ensure we use OpenAI data instead of Company Enrich.
+    """Pas bedrijfsdata uit een API-response toe op een Company record.
+
+    OpenAI-velden (description, employees, funding) krijgen altijd voorrang
+    op bestaande waarden in de database.
     """
     if not company or not api_data:
         return
@@ -283,34 +289,15 @@ def apply_company_data(company, api_data: Dict) -> None:
         company.updated_at = api_data["updated_at"]
 
 
-def needs_api_fetch(company, domain: Optional[str] = None) -> bool:
-    if not company or not domain:
-        return False
-    return not company.updated_at or company.domain != domain or not company.headline
-
-
-def link_company_industries(company, industries_list: List[str]) -> None:
-    if not company or not industries_list:
-        return
-    for name in industries_list:
-        parsed = name.split("/")[-1].strip() if "/" in name else name.strip()
-        industry = db.session.query(Industry).filter(Industry.name == parsed).first()
-        if not industry:
-            industry = Industry(name=parsed)  # type: ignore[arg-type]
-            db.session.add(industry)
-            db.session.flush()
-        if not db.session.query(CompanyIndustry).filter_by(company_id=company.id, industry_id=industry.id).first():
-            db.session.add(CompanyIndustry(company_id=company.id, industry_id=industry.id))  # type: ignore[arg-type]
-
-
 def fetch_openai_funding(company_name: Optional[str] = None, domain: Optional[str] = None) -> Optional[int]:
-    """Fetch company funding information using OpenAI API.
+    """Haal funding / market cap op via OpenAI met web search.
     
     For publicly traded companies, returns market capitalization instead of funding.
     
     Args:
         company_name: Company name (e.g., 'Nike')
         domain: Company domain (e.g., 'nike.com')
+        use_web_search: If True, use web search (slower but more current). Default False for performance.
         
     Returns:
         Funding amount or market cap as integer (in base currency units), or None if not found/fails
@@ -319,10 +306,17 @@ def fetch_openai_funding(company_name: Optional[str] = None, domain: Optional[st
     if not search_query:
         return None
     
-    prompt = f"""Please provide the funding or market capitalization for the company "{search_query}".
+    # Gebruik altijd web search voor deze informatie.
+    web_prompt = f"""Research the company "{search_query}" and find their current funding or market capitalization.
+
+Search the web for recent information about:
+1. Recent funding rounds (seed, Series A, B, C, etc.) for private companies
+2. Total funding raised across all rounds
+3. Current market capitalization for publicly traded companies
+4. Latest financial information
 
 IMPORTANT:
-- For PRIVATELY HELD companies: Provide the total funding amount raised across all funding rounds (seed, Series A, B, C, etc.).
+- For PRIVATELY HELD companies: Provide the total funding amount raised across all funding rounds.
 - For PUBLICLY TRADED (listed) companies: Provide the CURRENT MARKET CAPITALIZATION instead of funding. Market cap is more relevant for public companies.
 
 You must respond with valid JSON in this exact format:
@@ -338,24 +332,22 @@ Where:
 
 For listed companies, always use market capitalization as it is more accurate and relevant than funding."""
 
-    return _fetch_numeric_value(
+    return _fetch_numeric_value_with_web_search(
         search_query=search_query,
-        prompt=prompt,
-        system_prompt="You are a helpful assistant that provides accurate company funding and market capitalization information. You must always respond with valid JSON only, no additional text.",
         field_name="funding",
         suffixes={"b": 1_000_000_000, "m": 1_000_000, "k": 1_000},
         log_label="funding/market cap",
-        temperature=0.1,
-        max_tokens=200,
+        prompt=web_prompt,
     )
 
 
-def fetch_openai_team_size(company_name: Optional[str] = None, domain: Optional[str] = None) -> Optional[int]:
-    """Fetch company team size (number of employees) using OpenAI API.
+def fetch_openai_team_size(company_name: Optional[str] = None, domain: Optional[str] = None, use_web_search: bool = False) -> Optional[int]:
+    """Haal teamgrootte (aantal werknemers) op via OpenAI met web search.
     
     Args:
         company_name: Company name (e.g., 'Nike')
         domain: Company domain (e.g., 'nike.com')
+        use_web_search: If True, use web search (slower but more current). Default False for performance.
         
     Returns:
         Number of employees as integer, or None if not found/fails
@@ -364,7 +356,14 @@ def fetch_openai_team_size(company_name: Optional[str] = None, domain: Optional[
     if not search_query:
         return None
     
-    prompt = f"""Please provide the current number of employees (team size) for the company "{search_query}".
+    # Gebruik altijd web search voor deze informatie.
+    web_prompt = f"""Research the company "{search_query}" and find their current number of employees (team size).
+
+Search the web for recent information about:
+1. Current employee count
+2. Recent hiring or layoff announcements
+3. Company size information from official sources
+4. Latest workforce statistics
 
 You must respond with valid JSON in this exact format:
 {{
@@ -373,24 +372,22 @@ You must respond with valid JSON in this exact format:
 
 Where employees is the total number of employees as an integer. Use null if the information is not available."""
 
-    return _fetch_numeric_value(
+    return _fetch_numeric_value_with_web_search(
         search_query=search_query,
-        prompt=prompt,
-        system_prompt="You are a helpful assistant that provides accurate company employee count information. You must always respond with valid JSON only, no additional text.",
         field_name="employees",
         suffixes={"m": 1_000_000, "k": 1_000},
         log_label="team size",
-        temperature=0.1,
-        max_tokens=200,
+        prompt=web_prompt,
     )
 
 
-def fetch_openai_description(company_name: Optional[str] = None, domain: Optional[str] = None) -> Optional[str]:
-    """Fetch company description using OpenAI API.
+def fetch_openai_description(company_name: Optional[str] = None, domain: Optional[str] = None, use_web_search: bool = False) -> Optional[str]:
+    """Haal een bedrijfsbeschrijving op via OpenAI met web search.
     
     Args:
         company_name: Company name (e.g., 'Nike')
         domain: Company domain (e.g., 'nike.com')
+        use_web_search: If True, use web search (slower but more current). Default False for performance.
         
     Returns:
         Company description as string, or None if not found/fails
@@ -399,15 +396,17 @@ def fetch_openai_description(company_name: Optional[str] = None, domain: Optiona
     if not search_query:
         return None
     
-    prompt = f"""Please provide a comprehensive description of the company "{search_query}".
+    # Gebruik altijd web search voor deze beschrijving.
+    web_prompt = f"""Research the company "{search_query}" and provide a comprehensive description.
 
-The description should be informative and professional, covering:
-- What the company does
-- Its main products or services
-- Its market focus
-- Key differentiators or notable aspects
+Search the web for recent information about:
+1. What the company does
+2. Its main products or services
+3. Its market focus and positioning
+4. Key differentiators or notable aspects
+5. Recent developments or news
 
-Keep it concise but informative (2-4 sentences). Write in a professional tone suitable for a company profile page.
+Based on your research, provide a concise but informative description (2-4 sentences) in a professional tone suitable for a company profile page.
 
 You must respond with valid JSON in this exact format:
 {{
@@ -416,14 +415,13 @@ You must respond with valid JSON in this exact format:
 
 Use null for description if information is not available."""
 
-    data = chat_json(
-        system_prompt="You are a helpful assistant that provides accurate company descriptions. You must always respond with valid JSON only, no additional text.",
-        user_prompt=prompt,
-        model="gpt-4o",
-        temperature=0.3,
-        max_tokens=300,
+    web_result = responses_json_with_sources(
+        web_prompt,
+        tools=[{"type": "web_search"}],
+        tool_choice="auto",
         context=f"description for {search_query}",
     )
+    data = web_result["data"] if web_result and web_result.get("data") else None
     if not data:
         return None
     

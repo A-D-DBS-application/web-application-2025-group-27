@@ -39,6 +39,7 @@ backups/
 .cursor/
 migrations/
 tools/
+TODO_FUTURE.md
 
 # Flask
 instance/
