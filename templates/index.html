@@ -379,6 +379,25 @@
         </section>
     </div>
 </div>
+{% elif company %}
+<div class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 text-center">
+        <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="target" class="w-8 h-8 text-slate-600"></i>
+        </div>
+        <h2 class="font-display text-xl font-semibold text-slate-900 mb-2">No rivals tracked yet</h2>
+        <p class="text-sm text-slate-600 mb-4 max-w-md mx-auto">
+            We can use OpenAI with web search to find your first direct rivals based on your company name and domain.
+            This will create a small list of tracked rivals for signals and profiles.
+        </p>
+        <form action="{{ url_for('main.refresh_competitors_route') }}" method="POST" class="inline-flex">
+            <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors duration-200">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                <span>Find Rivals</span>
+            </button>
+        </form>
+    </div>
+</div>
 {% else %}
 <p class="text-slate-500 text-center py-12">No rivals tracked yet.</p>
 {% endif %}

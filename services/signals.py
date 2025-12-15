@@ -6,6 +6,7 @@ Belangrijk:
 """
 
 import json
+import logging
 from copy import deepcopy
 from datetime import datetime
 from typing import Optional
@@ -13,6 +14,9 @@ from typing import Optional
 from app import db
 from models import Company, CompanySignal, CompanySnapshot
 from services.openai_helpers import chat_json, responses_json_with_sources
+
+
+logger = logging.getLogger(__name__)
 
 
 SNAPSHOT_TEMPLATE = {
@@ -134,6 +138,11 @@ def _generate_ai_snapshot(company: Company, competitor: Company, industries: lis
     """
     # Only use web search if explicitly requested (for performance)
     if use_web_search:
+        logger.warning(
+            "signals: generating AI snapshot with web search for competitor '%s' (company='%s')",
+            competitor.name,
+            company.name,
+        )
         web_prompt = f"""Research the company "{competitor.name}" (website: {competitor.domain or 'unknown'}) and create a competitive intelligence profile.
 
 Search the web for recent information about:
@@ -634,7 +643,13 @@ def _derive_change_description(competitor: Company, diff: dict) -> str:
     return f"{competitor.name}: {', '.join(changes[:3])}"
 
 
-def generate_signals_for_competitor(company: Company, competitor: Company, diff: dict, use_web_search: bool = True) -> list:
+def generate_signals_for_competitor(
+    company: Company,
+    competitor: Company,
+    diff: dict,
+    use_web_search: bool = True,
+    allow_simple_fallback: bool = True,
+) -> list:
     """Genereer AI-signals voor één competitor op basis van een diff.
 
     - gebruikt web search (Responses API) om, indien ingeschakeld, rijke signals met nieuws te bouwen
@@ -642,6 +657,11 @@ def generate_signals_for_competitor(company: Company, competitor: Company, diff:
     - alle gegenereerde signals krijgen altijd een geldige `competitor_id`
     """
     if diff.get("is_initial") or not diff or not any(k in diff for k in MEANINGFUL_DIFF_KEYS):
+        logger.warning(
+            "signals: no meaningful diff for competitor '%s' (company='%s'), skipping AI signal generation",
+            competitor.name,
+            company.name,
+        )
         return []
     
     # Korte samenvatting maken van de changes voor gebruik in de prompt
@@ -792,6 +812,11 @@ Rules:
     
     # Gebruik enkel web search voor AI-signals; geen fallback naar andere AI-calls.
     if use_web_search:
+        logger.warning(
+            "signals: starting AI signal generation with web search for competitor '%s' (company='%s')",
+            competitor.name,
+            company.name,
+        )
         web_result = responses_json_with_sources(
             web_prompt,
             tools=[{"type": "web_search"}],
@@ -803,8 +828,24 @@ Rules:
             sources = web_result.get("sources", [])
     
     # Als web search geen bruikbare data oplevert (of uitgeschakeld is),
-    # val terug op de eenvoudige, niet-AI gebaseerde signal-logica.
+    # val normaal terug op de eenvoudige, niet-AI gebaseerde signal-logica.
+    # Bij manuele acties (allow_simple_fallback=False) mag dit NIET stil gebeuren:
+    # dan gooien we een fout zodat de route een duidelijke melding kan tonen.
     if not data:
+        logger.warning(
+            "signals: no usable AI/web-search data for competitor '%s' (company='%s')",
+            competitor.name,
+            company.name,
+        )
+        if not allow_simple_fallback:
+            raise RuntimeError(
+                f"AI/web-search data unavailable while generating signals for competitor '{competitor.name}'"
+            )
+        logger.warning(
+            "signals: falling back to simple (non-AI) signals for competitor '%s' (company='%s')",
+            competitor.name,
+            company.name,
+        )
         return _generate_simple_competitor_signals(company, competitor, diff)
     
     signals = []
@@ -833,6 +874,13 @@ Rules:
             details=payload.get("details", ""), source_url=source_url,
             related_news=related_news if related_news else None))
     db.session.commit()
+    logger.warning(
+        "signals: generated %d AI-based signals for competitor '%s' (company='%s', use_web_search=%s)",
+        len(signals),
+        competitor.name,
+        company.name,
+        use_web_search,
+    )
     return signals
 
 
@@ -841,6 +889,12 @@ def _generate_simple_competitor_signals(company: Company, competitor: Company, d
     comp_name = competitor.name or "Competitor"
     signals = [_create_signal(company, competitor, **payload) for payload in _simple_signal_payloads(comp_name, diff)]
     db.session.commit()
+    logger.warning(
+        "signals: generated %d simple (non-AI) signals for competitor '%s' (company='%s')",
+        len(signals),
+        comp_name,
+        company.name,
+    )
     return signals
 
 
@@ -931,7 +985,11 @@ def get_all_competitor_snapshots(company: Company) -> dict:
 # Main Orchestrator: Refresh Competitor Signals
 # =============================================================================
 
-def refresh_competitor_signals(company: Company, force_ai: bool = False) -> list:
+def refresh_competitor_signals(
+    company: Company,
+    force_ai: bool = False,
+    allow_simple_fallback: bool = True,
+) -> list:
     """Refresh signals for ALL competitors of a company.
     
     This is the main entry point. It:
@@ -948,18 +1006,57 @@ def refresh_competitor_signals(company: Company, force_ai: bool = False) -> list
     """
     if not company:
         return []
-    
+
+    logger.warning(
+        "signals: refresh_competitor_signals started for company '%s' (force_ai=%s)",
+        company.name,
+        force_ai,
+    )
+
     for competitor in _iter_competitors(company):
+        logger.warning(
+            "signals: processing competitor '%s' for company '%s'",
+            competitor.name,
+            company.name,
+        )
         current = build_competitor_snapshot(company, competitor, force_ai=force_ai)
         old_data = _snapshot_dict(load_last_competitor_snapshot(company, competitor))
         diff = compute_diff(old_data, current)
-        
+
         if diff.get("is_initial"):
+            logger.warning(
+                "signals: initial snapshot created for competitor '%s' (company='%s') – no signals yet",
+                competitor.name,
+                company.name,
+            )
             save_competitor_snapshot(company, competitor, current)
             continue
-        
+
         if any(k in diff for k in MEANINGFUL_DIFF_KEYS):
+            logger.warning(
+                "signals: meaningful diff detected for competitor '%s' (company='%s'), generating signals",
+                competitor.name,
+                company.name,
+            )
             save_competitor_snapshot(company, competitor, current)
-            generate_signals_for_competitor(company, competitor, diff)
-    
-    return get_competitor_signals(company)
+            generate_signals_for_competitor(
+                company,
+                competitor,
+                diff,
+                use_web_search=force_ai,
+                allow_simple_fallback=allow_simple_fallback,
+            )
+        else:
+            logger.warning(
+                "signals: no meaningful diff for competitor '%s' (company='%s') – skipping signal generation",
+                competitor.name,
+                company.name,
+            )
+
+    all_signals = get_competitor_signals(company)
+    logger.warning(
+        "signals: refresh_competitor_signals finished for company '%s' – total signals now: %d",
+        company.name,
+        len(all_signals),
+    )
+    return all_signals

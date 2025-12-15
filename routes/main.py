@@ -261,12 +261,24 @@ def refresh_signals():
     company = _require_company()
     if not company:
         return redirect(url_for("main.homepage"))
-    
+
     from services.signals import refresh_competitor_signals
-    # Use force_ai=True to enable web search for fresh snapshot data
-    refresh_competitor_signals(company, force_ai=True)
-    
-    flash("Competitor signals refreshed!", "success")
+
+    # Manuele actie: gebruiker verwacht dat AI echt wordt geprobeerd.
+    # Gebruik force_ai=True en allow_simple_fallback=False:
+    # - Als AI/web search faalt → exception → toon expliciete foutmelding.
+    # - Geen stille fallback naar simpele signals.
+    try:
+        refresh_competitor_signals(company, force_ai=True, allow_simple_fallback=False)
+        flash("Competitor signals refreshed with AI & web search.", "success")
+    except Exception as e:
+        logging.error("Error refreshing competitor signals with AI: %s", e, exc_info=True)
+        flash(
+            "AI-signals konden niet worden gegenereerd (OpenAI niet beschikbaar of quota opgebruikt). "
+            "Bestaande signals blijven zichtbaar, maar zijn niet geüpdatet.",
+            "error",
+        )
+
     return redirect(url_for("main.homepage") + "#signals")
 
 

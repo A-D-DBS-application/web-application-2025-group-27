@@ -11,7 +11,13 @@ from app import db
 from models import Company, User
 from services.company_api import fetch_openai_similar_companies
 from utils.auth import login_user
-from utils.company_helpers import add_competitor_from_data, enrich_company_if_needed, generate_landscape_if_needed
+from utils.company_helpers import (
+    add_competitor_from_data,
+    enrich_company_if_needed,
+    generate_landscape_if_needed,
+    get_company_competitors,
+    refresh_competitors,
+)
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -90,7 +96,7 @@ def login():
     # Log de gebruiker in (zet sessie + g.current_user / g.current_company)
     login_user(user)
     
-    # Probeer competitor signals te verversen bij login.
+    # Probeer competitor signals en rivals te verversen bij login.
     # Dit gebeurt in de achtergrond: fouten blokkeren de login niet.
     company_obj = cast(Optional[Company], getattr(user, "company", None))
     if company_obj:
@@ -99,6 +105,13 @@ def login():
             refresh_competitor_signals(company_obj)
         except Exception:
             # Login mag nooit falen door een fout in AI/websearch.
+            pass
+        
+        # Probeer bij elke login de rivals te verversen met recente OpenAI-data.
+        # Dit gebruikt OpenAI met web search, maar mag de login nooit breken.
+        try:
+            refresh_competitors(company_obj)
+        except Exception:
             pass
     
     # Na een geslaagde login altijd naar het dashboard (of "next" parameter)
