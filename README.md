@@ -15,14 +15,14 @@ De applicatie helpt bedrijven hun concurrenten te volgen via gestructureerde pro
 ## Kernfunctionaliteiten
 
 - Company tracking: basisprofiel voor het eigen bedrijf en gekoppelde concurrenten.
-- Competitor snapshots: gestructureerde “foto’s” met basic, organisatie, hiring focus en strategie.
+- Competitor snapshots: gestructureerde "foto's" met basic, organisatie, hiring focus en strategie.
 - Diff + signals: bij betekenisvolle verschillen tussen snapshots worden automatische signals gemaakt.
 - Competitive landscape: korte AI-gegenereerde samenvatting van markt en positie.
 - Dashboard: één overzichtsscherm met bedrijf, concurrenten, signals en recent nieuws.
 
 ## Architectuur (hoog niveau)
 
-- Flask-applicatie met blueprints in `routes/` voor authenticatie, dashboard en detailpagina’s.
+- Flask-applicatie met blueprints in `routes/` voor authenticatie, dashboard en detailpagina's.
 - Services in `services/` voor:
   - OpenAI-calls (via `openai_helpers`),
   - company-data (`company_api`),
@@ -72,17 +72,31 @@ De applicatie helpt bedrijven hun concurrenten te volgen via gestructureerde pro
 
 De applicatie is dan bereikbaar op `http://localhost:5000`.
 
+## User Stories
+
+De user stories voor deze MVP zijn gedocumenteerd in een word-bestand.  
+[User Stories WORD](https://docs.google.com/document/d/1EGdD-MdDd5ckVSKveEku67NvECo1FRZj/edit?usp=share_link&ouid=117236600471541148202&rtpof=true&sd=true)
+
 ## Externe links
+
+- **Live applicatie**  
+  De applicatie is live beschikbaar op Render:  
+  [Live App](https://rival-2z3l.onrender.com)
 
 - **UI prototype**  
   Zie de map `images/ui-prototype/` voor statische screenshots van de belangrijkste schermen.  
-  Een tijdelijk live prototype kan indien nodig via Lovable gedeeld worden.
+  Live prototype: [Lovable Prototype](https://id-preview--16083f01-3507-479c-aa76-f1d19ec41eb4.lovable.app/#industries)
 
 - **Kanban board**  
   Miro-bord voor sprint- en takenopvolging:  
   `https://miro.com/app/board/uXjVJwMn8m4=/`
 
-- **Feedbackopnames**  
-  Sprint 1 feedbacksessies (StarApps – Jeroen Vroman) in `docs/sprints/first/`:
-  - `Session_1.mp4`
-  - `Session_2.mp4`
+- **Database Schema (ERD)**  
+  Zie `docs/ERD.md` voor het volledige Entity Relationship Diagram met alle tabellen, relaties en constraints.
+
+- **Agile Process**  
+  Sprint planning en feedback is gedocumenteerd via het Miro Kanban board.  
+  Partner feedback sessies met StarApps (Jeroen Vroman) zijn uitgevoerd tijdens Sprint 1:
+  - [Sprint 1 Feedback Sessie 1](https://drive.google.com/file/d/1zhyswnSrefaYdzM4G6vYLeBp9g-qgQ4n/view?usp=share_link)
+  - [Sprint 1 Feedback Sessie 2](https://drive.google.com/file/d/1HsMQHlAAv_ODQGJebyDVyl0ITxNAOx7H/view?usp=sharing)
+  - [Sprint 1 Feedback Sessie 3](https://drive.google.com/file/d/11P3shbbTTjRxh4M5L11y_ps1Qwbu29xg/view?usp=sharing)

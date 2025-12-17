@@ -267,11 +267,12 @@ def refresh_signals():
     # Manuele actie: gebruiker verwacht dat AI echt wordt geprobeerd.
     # Gebruik force_ai=True en allow_simple_fallback=False:
     # - Als AI/web search faalt → exception → toon expliciete foutmelding.
-    # - Geen stille fallback naar simpele signals.
+    # - Geen stille fallback naar simpele signals (gebruiker moet weten dat AI faalde).
     try:
         refresh_competitor_signals(company, force_ai=True, allow_simple_fallback=False)
         flash("Competitor signals refreshed with AI & web search.", "success")
     except Exception as e:
+        # User-triggered actie: altijd feedback geven
         logging.error("Error refreshing competitor signals with AI: %s", e, exc_info=True)
         flash(
             "AI-signals konden niet worden gegenereerd (OpenAI niet beschikbaar of quota opgebruikt). "

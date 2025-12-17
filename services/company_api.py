@@ -10,16 +10,6 @@ from typing import Dict, List, Optional, cast
 
 from services.openai_helpers import chat_json, responses_json_with_sources
 
-EMPTY_RESPONSE = {
-    "name": None,
-    "description": None,
-    "employees": None,
-    "industry": None,
-    "country": None,
-    "funding": None,
-    "industries": [],
-}
-
 
 def _build_search_query(company_name: Optional[str], domain: Optional[str]) -> Optional[str]:
     """Combine company name and domain for prompts."""
@@ -37,7 +27,12 @@ def _clean_domain(domain: str) -> str:
 
 
 def _parse_numeric_value(value, suffix_multipliers: Dict[str, int]) -> Optional[int]:
-    """Parse numeric strings like '10k' or '2.5B' into integers."""
+    """Parse numerieke strings zoals '10k' of '2.5B' naar integers.
+    
+    Ondersteunt suffix multipliers (k=1000, m=1M, b=1B) en handhaaft
+    verschillende formaten (decimaal, met komma's). Gebruikt voor funding
+    en employee counts die als strings kunnen komen van OpenAI.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)):
@@ -82,17 +77,20 @@ def _fetch_numeric_value_with_web_search(
 
 
 def fetch_openai_similar_companies(company_name: Optional[str] = None, domain: Optional[str] = None, limit: int = 10, use_web_search: bool = False) -> List[Dict]:
-    """Fetch similar companies/competitors using OpenAI API.
+    """Haal vergelijkbare companies/competitors op via OpenAI API.
     
-    This replaces Company Enrich API for more accurate competitor identification.
+    BELANGRIJK: Dit vervangt Company Enrich API omdat OpenAI accurater bleek
+    voor competitor identificatie. OpenAI kan beter onderscheid maken tussen
+    echte competitors en suppliers/partners.
     
     Args:
-        company_name: Company name (e.g., 'Apple')
-        domain: Company domain (e.g., 'apple.com')
-        limit: Maximum number of competitors to return
+        company_name: Company naam (bijv. 'Apple')
+        domain: Company domein (bijv. 'apple.com')
+        limit: Maximum aantal competitors om terug te geven
+        use_web_search: Als True, gebruik web search voor actuele data (langzamer maar accurater)
         
     Returns:
-        List of competitor dictionaries with name, domain, website, industry, country
+        Lijst van competitor dictionaries met name, domain, website, industry, country
     """
     search_query = _build_search_query(company_name, domain)
     if not search_query:
@@ -136,7 +134,8 @@ Requirements:
 
     data = None
     
-    # Only use web search if explicitly requested (for performance)
+    # Gebruik web search alleen als expliciet gevraagd (voor performance)
+    # Web search is accurater maar langzamer - gebruik voor expliciete refreshes
     if use_web_search:
         web_prompt = f"""Research the competitive landscape for "{search_query}" and identify their main competitors.
 
@@ -175,7 +174,7 @@ Return valid JSON in this format:
         if web_result and web_result.get("data"):
             data = web_result.get("data")
     
-    # Fallback to regular chat if web search didn't work or wasn't requested
+    # Fallback naar reguliere chat als web search niet werkte of niet gevraagd was
     if not data:
         data = chat_json(
             system_prompt="You are a helpful assistant that provides accurate competitor information. You must always respond with valid JSON only, no additional text.",
@@ -220,8 +219,9 @@ Return valid JSON in this format:
 def apply_company_data(company, api_data: Dict) -> None:
     """Pas bedrijfsdata uit een API-response toe op een Company record.
 
-    OpenAI-velden (description, employees, funding) krijgen altijd voorrang
-    op bestaande waarden in de database.
+    BELANGRIJK: OpenAI-velden (description, employees, funding) krijgen ALTIJD voorrang
+    op bestaande waarden. Dit is bewust: OpenAI data is accurater dan handmatige input.
+    Basisvelden (industry, country) worden alleen gezet als ze nog niet bestaan.
     """
     if not company or not api_data:
         return

@@ -7,35 +7,46 @@ from sqlalchemy import func, or_
 
 from app import db
 from models import Company, CompanyCompetitor
+from services.competitive_landscape import generate_competitive_landscape
 from services.company_api import (
     fetch_openai_description,
     fetch_openai_funding,
     fetch_openai_similar_companies,
     fetch_openai_team_size,
 )
-from services.competitive_landscape import generate_competitive_landscape
 
 
 logger = logging.getLogger(__name__)
 
 
 def _collect_related(company, relation: str, attr: str):
+    """Helper om gerelateerde objecten op te halen via een relation naam.
+    
+    Gebruikt door get_company_industries en get_company_competitors om
+    de juiste objecten uit de many-to-many relaties te halen.
+    """
     return [] if not company else [
         getattr(link, attr) for link in getattr(company, relation, []) or [] if link and getattr(link, attr)
     ]
 
 
 def get_company_industries(company: Company) -> List:
-    """Get list of Industry objects for a company."""
+    """Haal lijst van Industry objecten op voor een company."""
     return _collect_related(company, "industries", "industry")
 
 
 def get_company_competitors(company: Company) -> List[Company]:
-    """Get list of competitor Company objects."""
+    """Haal lijst van competitor Company objecten op."""
     return _collect_related(company, "competitors", "competitor")
 
 
 def _apply_openai_overrides(company: Company, company_name: Optional[str], company_domain: Optional[str]) -> None:
+    """Pas OpenAI data toe op company velden (team size, beschrijving, funding).
+    
+    KRITIEK: OpenAI data krijgt ALTIJD voorrang - dit overschrijft bestaande waarden.
+    Dit is bewust: OpenAI data is accurater dan handmatig ingevoerde data.
+    Als OpenAI call faalt, worden originele waarden hersteld via nested transaction rollback.
+    """
     if not (company_name or company_domain):
         return
     originals = (
@@ -55,12 +66,17 @@ def _apply_openai_overrides(company: Company, company_name: Optional[str], compa
             if funding is not None:
                 company.funding = funding
     except Exception as exc:
+        # Herstel originele waarden bij fout (nested transaction rollback)
         company.number_of_employees, company.headline, company.funding = originals
         logger.error("Failed to fetch OpenAI data for %s: %s", company_name or company_domain, exc, exc_info=True)
 
 
 def enrich_company_if_needed(company: Company, domain: Optional[str] = None) -> None:
-    """Verrijk company-data via OpenAI (team size, beschrijving, funding)."""
+    """Verrijk company-data via OpenAI (team size, beschrijving, funding).
+    
+    Deze functie wordt aangeroepen tijdens signup en bij competitor toevoeging.
+    Het is niet-blockend: als OpenAI faalt, blijft de company bestaan met basisdata.
+    """
     if not company:
         return
     target_domain = domain or company.domain
@@ -75,7 +91,11 @@ DEFAULT_LANDSCAPE = (
 
 
 def _upsert_competitor(comp_data: dict) -> Optional[Company]:
-    """Find or create a competitor Company from API data."""
+    """Zoek of maak een competitor Company aan vanuit API data.
+    
+    Gebruikt domain of name matching om te voorkomen dat dezelfde competitor
+    meerdere keren wordt aangemaakt. Update alleen velden die nog niet gezet zijn.
+    """
     comp_domain = comp_data.get("domain")
     if not comp_domain:
         return None
@@ -92,7 +112,7 @@ def _upsert_competitor(comp_data: dict) -> Optional[Company]:
         db.session.add(competitor)
         db.session.flush()
     
-    # Update fields only if not already set
+    # Update alleen velden die nog niet gezet zijn (preserve bestaande data)
     field_map = {
         "domain": comp_domain,
         "website": comp_data.get("website"),
@@ -107,7 +127,11 @@ def _upsert_competitor(comp_data: dict) -> Optional[Company]:
 
 
 def _ensure_competitor_link(company: Company, competitor: Company) -> None:
-    """Link company to competitor if not already linked."""
+    """Link company aan competitor als deze link nog niet bestaat.
+    
+    Voorkomt duplicate links en zorgt ervoor dat een company niet zichzelf
+    als competitor kan linken.
+    """
     if not company or not competitor or competitor.id == company.id:
         return
     exists = db.session.query(CompanyCompetitor).filter(
@@ -121,31 +145,42 @@ def _ensure_competitor_link(company: Company, competitor: Company) -> None:
 
 
 def add_competitor_from_data(company: Company, comp_data: dict) -> Optional[Company]:
-    """Add competitor relationship from API payload."""
+    """Voeg competitor relatie toe vanuit API payload.
+    
+    Maakt of vindt de competitor, verrijkt deze met OpenAI data (niet-blockend),
+    en linkt deze aan de company. Als enrichment faalt, wordt de competitor
+    nog steeds gelinkt (met basisdata).
+    """
     competitor = _upsert_competitor(comp_data)
     if not competitor:
         return None
     try:
         enrich_company_if_needed(competitor, comp_data.get("domain"))
     except Exception as exc:
+        # Log maar blokkeer niet - competitor wordt nog steeds gelinkt
         logger.error("Failed to enrich competitor %s: %s", competitor.name, exc, exc_info=True)
     _ensure_competitor_link(company, competitor)
     return competitor
 
 
 def refresh_competitors(company: Company) -> None:
-    """Replace competitor links with fresh OpenAI results using web search for current competitive data.
-
-    We:
-    - verwijderen eerst alle bestaande competitor-links voor deze company
-    - vragen tot 10 mogelijke rivals op via OpenAI met web search
-    - linken vervolgens maximaal 5 nieuwe rivals (met een ander domein dan de eigen company)
+    """Vervang competitor links met verse OpenAI resultaten via web search.
+    
+    BELANGRIJK: Dit VERVANGT alle bestaande competitor links. Oude links worden
+    verwijderd voordat nieuwe worden toegevoegd. Dit zorgt ervoor dat de
+    competitor lijst altijd up-to-date is met de laatste OpenAI data.
+    
+    Process:
+    - Verwijder eerst alle bestaande competitor-links voor deze company
+    - Vraag tot 10 mogelijke rivals op via OpenAI met web search (voor actuele data)
+    - Link maximaal 5 nieuwe rivals (met ander domein dan eigen company)
     """
     if not company or not company.domain:
         return
+    # Verwijder alle bestaande links - vervang volledig met nieuwe data
     db.session.query(CompanyCompetitor).filter(CompanyCompetitor.company_id == company.id).delete()
     db.session.flush()
-    # Use web search for current competitive landscape data (explicit refresh)
+    # Gebruik web search voor actuele competitive landscape data (expliciete refresh)
     similar = fetch_openai_similar_companies(company_name=company.name, domain=company.domain, limit=10, use_web_search=True)
     base_domain = (company.domain or "").lower().strip()
     for comp_data in similar[:5]:
@@ -156,7 +191,11 @@ def refresh_competitors(company: Company) -> None:
 
 
 def generate_landscape_if_needed(company: Company) -> None:
-    """Generate competitive landscape if not already present."""
+    """Genereer competitive landscape als deze nog niet bestaat.
+    
+    Gebruikt OpenAI met web search om een samenvatting te maken van de
+    competitive positie. Als generatie faalt, wordt DEFAULT_LANDSCAPE gebruikt.
+    """
     if not company or (company.competitive_landscape or "").strip():
         return
     competitors = get_company_competitors(company)
@@ -168,4 +207,5 @@ def generate_landscape_if_needed(company: Company) -> None:
             landscape = generate_competitive_landscape(company, competitors)
             company.competitive_landscape = landscape or DEFAULT_LANDSCAPE
     except Exception:
+        # Fallback naar default als OpenAI call faalt
         company.competitive_landscape = DEFAULT_LANDSCAPE

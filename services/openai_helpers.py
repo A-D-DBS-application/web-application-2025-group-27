@@ -3,11 +3,12 @@
 import json
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     from openai import OpenAI  # type: ignore
 except ImportError:  # pragma: no cover
+    # OpenAI SDK is optioneel - app werkt ook zonder (fallback naar basic data)
     OpenAI = None
 
 logger = logging.getLogger(__name__)
@@ -15,11 +16,17 @@ _client = None
 
 
 def get_openai_client():
-    """Geef een hergebruikte OpenAI-client terug als de API-key is ingesteld."""
+    """Geef een hergebruikte OpenAI-client terug als de API-key is ingesteld.
+    
+    Gebruikt singleton pattern: client wordt één keer geïnitialiseerd en
+    daarna hergebruikt. Als API key ontbreekt of ongeldig is, retourneert
+    None (callers moeten dit afhandelen met fallback logic).
+    """
     global _client
     if _client:
         return _client
     if _client is False:
+        # Client initialisatie is al geprobeerd en gefaald - skip opnieuw proberen
         return None
     if not OpenAI:
         logger.warning("OpenAI SDK not available")
@@ -39,6 +46,11 @@ def get_openai_client():
 
 
 def _strip_json(text: str) -> str:
+    """Verwijder markdown code blocks rond JSON.
+    
+    OpenAI kan soms JSON teruggeven in ```json ... ``` blocks.
+    Deze functie verwijdert die formatting zodat we pure JSON hebben.
+    """
     text = (text or "").strip()
     if text.startswith("```"):
         parts = text.split("```")
@@ -96,7 +108,12 @@ def chat_json(
     response_format: Optional[str] = "json_object",
     context: str = "",
 ) -> Optional[dict]:
-    """Voer een chat-completion uit en parse het resultaat als JSON."""
+    """Voer een chat-completion uit en parse het resultaat als JSON.
+    
+    Gebruikt OpenAI Chat Completions API met JSON response format.
+    Als de call faalt (geen API key, quota error, etc.), retourneert None.
+    Callers moeten dit afhandelen met fallback logic.
+    """
     client = get_openai_client()
     if not client:
         return None
@@ -112,6 +129,7 @@ def chat_json(
     try:
         resp = client.chat.completions.create(**params)  # type: ignore[arg-type]
     except Exception as exc:  # pragma: no cover
+        # Log maar crash niet - return None zodat caller fallback kan gebruiken
         extra = f" for {context}" if context else ""
         logger.warning("OpenAI chat completion failed%s: %s", extra, exc)
         return None
@@ -124,24 +142,28 @@ def responses_json_with_sources(
     prompt: str,
     *,
     model: str = "gpt-4o",
-    tools: Optional[list] = None,
+    tools: Optional[List[dict]] = None,
     tool_choice: str = "auto",
     context: str = "",
 ) -> Optional[Dict[str, Any]]:
-    """Run the Responses API with web search and return both JSON data and sources.
+    """Voer Responses API uit met web search en retourneer zowel JSON data als sources.
+    
+    Deze functie gebruikt OpenAI Responses API (niet Chat Completions) omdat
+    deze web search ondersteunt. Dit geeft ons zowel de AI output als de
+    bronnen (URLs) die gebruikt zijn voor de web search.
     
     Returns:
         {
-            "data": dict,  # Parsed JSON from model output
-            "sources": list  # List of source URLs/citations from web search
+            "data": dict,  # Geparsed JSON van model output
+            "sources": list  # Lijst van source URLs/citations van web search
         }
-        or None if the call failed
+        of None als de call faalt
     """
     client = get_openai_client()
     if not client:
         return None
     
-    # Configure tools - web_search is a built-in tool
+    # Configureer tools - web_search is een built-in tool van Responses API
     params: Dict[str, Any] = {"model": model, "input": prompt}
     if tools:
         params["tools"] = tools
@@ -151,23 +173,25 @@ def responses_json_with_sources(
     try:
         resp = client.responses.create(**params)  # type: ignore[arg-type]
     except Exception as exc:  # pragma: no cover
+        # Log maar crash niet - return None zodat caller fallback kan gebruiken
         extra = f" for {context}" if context else ""
         logger.warning("OpenAI responses call failed%s: %s", extra, exc)
         return None
     
-    # Parse output items according to Responses API structure
-    # Responses API returns: { "output": [{"content": [...]}, ...], "citations": [...] }
-    text_chunks = []
-    sources = []
+    # Parse output items volgens Responses API structuur
+    # Responses API retourneert: { "output": [{"content": [...]}, ...], "citations": [...] }
+    # We moeten door meerdere lagen navigeren om zowel text als citations te vinden
+    text_chunks: List[str] = []
+    sources: List[str] = []
     
-    # Get output items array
+    # Haal output items array op
     output_items = getattr(resp, "output", []) or []
     for item in output_items:
-        # Handle content array in output items
-        # Content can be: text items, tool call items
+        # Behandel content array in output items
+        # Content kan zijn: text items, tool call items
         content_list = getattr(item, "content", []) or []
         for content in content_list:
-            # Check for text content (OutputItemText)
+            # Check voor text content (OutputItemText)
             text_attr = getattr(content, "text", None)
             if text_attr:
                 if isinstance(text_attr, str):
@@ -175,14 +199,14 @@ def responses_json_with_sources(
                 elif hasattr(text_attr, "value"):
                     text_chunks.append(text_attr.value)
             
-            # Check for tool calls (OutputItemToolCall)
-            # Tool calls contain tool results which may have citations
+            # Check voor tool calls (OutputItemToolCall)
+            # Tool calls bevatten tool results die citations kunnen hebben
             tool_calls = getattr(content, "tool_calls", []) or []
             for tool_call in tool_calls:
-                # Web search tool results may contain citations
+                # Web search tool results kunnen citations bevatten
                 tool_result = getattr(tool_call, "result", None)
                 if tool_result:
-                    # Check if result has citations
+                    # Check of result citations heeft
                     result_citations = getattr(tool_result, "citations", None)
                     if result_citations:
                         if isinstance(result_citations, list):
@@ -195,7 +219,7 @@ def responses_json_with_sources(
                             if url:
                                 sources.append(url)
         
-        # Check for citations on the output item itself
+        # Check voor citations op het output item zelf
         item_citations = getattr(item, "citations", None)
         if item_citations:
             if isinstance(item_citations, list):
@@ -208,7 +232,7 @@ def responses_json_with_sources(
                 if url:
                     sources.append(url)
     
-    # Check top-level citations object (common location for web search citations)
+    # Check top-level citations object (veelvoorkomende locatie voor web search citations)
     resp_citations = getattr(resp, "citations", None)
     if resp_citations:
         if isinstance(resp_citations, list):
@@ -221,27 +245,27 @@ def responses_json_with_sources(
             if url:
                 sources.append(url)
     
-    # Parse JSON from collected text
+    # Parse JSON uit verzamelde text
     combined_text = "".join(text_chunks).strip()
     
     if not combined_text:
-        # No text content, but we might have sources
+        # Geen text content, maar we kunnen wel sources hebben
         return {
             "data": None,
             "sources": list(set(sources)) if sources else []
         }
     
-    # Try to parse as JSON first (silent=True because plain text is expected for Responses API)
+    # Probeer eerst als JSON te parsen (silent=True omdat plain text ook mogelijk is)
     parsed_json = _to_json(_strip_json(combined_text), silent=True)
     
-    # If not JSON, treat as plain text (common for Responses API with web search)
+    # Als geen JSON, behandel als plain text (veelvoorkomend bij Responses API met web search)
     if parsed_json is None:
-        # Return as plain text in a dict structure
+        # Retourneer als plain text in een dict structuur
         parsed_json = {"text": combined_text, "content": combined_text}
     
-    # Return both data and sources
+    # Retourneer zowel data als sources (deduplicate sources)
     return {
         "data": parsed_json,
-        "sources": list(set(sources))  # Deduplicate sources
+        "sources": list(set(sources))
     }
 

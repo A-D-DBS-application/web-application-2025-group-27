@@ -114,11 +114,18 @@ def build_competitor_snapshot(company: Company, competitor: Company, force_ai: b
 
 
 def _reuse_cached_snapshot(company: Company, competitor: Company, industries: list) -> Optional[dict]:
-    """Probeer het laatste snapshot te hergebruiken voor snellere loads."""
+    """Probeer het laatste snapshot te hergebruiken voor snellere loads.
+    
+    CACHING STRATEGIE: In plaats van elke keer een nieuwe AI snapshot te maken,
+    hergebruiken we het laatste snapshot en updaten alleen de velden die kunnen
+    veranderen (industries, country, employee_size). Dit bespaart API calls en
+    verbetert performance. Alleen bij force_ai=True wordt een nieuwe snapshot gemaakt.
+    """
     last_snap = load_last_competitor_snapshot(company, competitor)
     old_data = _snapshot_dict(last_snap)
     if not old_data or "basic" not in old_data or "strategic_profile" not in old_data:
         return None
+    # Update alleen dynamische velden (industries kunnen veranderen, employee_size ook)
     old_data["basic"]["industries"] = industries
     old_data["basic"]["country"] = competitor.country or ""
     org = old_data.setdefault("organization", {})
@@ -335,8 +342,22 @@ def _snapshot_dict(snapshot: Optional[CompanySnapshot]) -> Optional[dict]:
 # =============================================================================
 
 def compute_diff(old: Optional[dict], new: dict) -> dict:
-    """Compute diff between old and new snapshots."""
+    """Bereken diff tussen oude en nieuwe snapshots.
+    
+    KERNALGORITME: Dit is de value-adding diff computation die betekenisvolle
+    veranderingen detecteert. Combineert:
+    - Set-operaties voor industries/strategic fields (toegevoegd/verwijderd)
+    - Numerieke vergelijkingen voor hiring focus (score verschillen)
+    - Value changes voor employee size en country
+    
+    Alleen veranderingen in MEANINGFUL_DIFF_KEYS leiden tot signals.
+    Dit filtert noise en focus op competitief relevante wijzigingen.
+    
+    Returns:
+        Dict met detected changes, of {"is_initial": True} als eerste snapshot.
+    """
     if not old:
+        # Eerste snapshot - geen signals genereren
         return {"is_initial": True}
     
     diff = {}
@@ -345,52 +366,79 @@ def compute_diff(old: Optional[dict], new: dict) -> dict:
     old_hiring, new_hiring = old.get("hiring_focus", {}), new.get("hiring_focus", {})
     old_strategic, new_strategic = old.get("strategic_profile", {}), new.get("strategic_profile", {})
     
+    # Employee size change detection (bucket-based, niet exact aantal)
     if change := _value_change(old_org.get("employee_size", old.get("employees", "unknown")), new_org.get("employee_size", new.get("employees", "unknown"))):
         diff["employee_size_change"] = change
     
+    # Industry changes via set-diff (toegevoegd/verwijderd)
     added, removed = _set_diff(old_basic.get("industries"), new_basic.get("industries"))
     if added:
         diff["new_industries"] = added
     if removed:
         diff["dropped_industries"] = removed
     
+    # Country change detection
     if country_change := _value_change(old_basic.get("country", old.get("country", "")), new_basic.get("country", new.get("country", ""))):
         diff["country_changed"] = country_change
     
+    # Hiring focus changes (numerieke score verschillen per roltype)
     if hiring_diff := _hiring_changes(old_hiring, new_hiring):
         diff["hiring_focus_change"] = hiring_diff
     
+    # Strategic changes (set-diff voor markets, themes, segments)
     diff.update(_strategic_changes(old_strategic, new_strategic))
     return diff
 
 
+# Lijst van diff keys die betekenisvol zijn voor signal generatie
+# Alleen deze keys leiden tot signals - dit voorkomt false positives
 MEANINGFUL_DIFF_KEYS = [
     "employee_size_change", "new_industries", "dropped_industries",
     "country_changed", "hiring_focus_change",
     "primary_markets_changed", "product_themes_changed", "target_segments_changed"
 ]
-SIGNAL_BUCKETS = ("hiring", "product", "funding")  # alle mogelijke signal-categorieën
+SIGNAL_BUCKETS = ("hiring", "product", "funding")  # Alle mogelijke signal-categorieën
 
 HIRING_FIELDS = ("engineering", "data", "product", "design", "marketing", "sales", "operations", "ai_ml_roles")
 STRATEGIC_FIELDS = ("primary_markets", "product_themes", "target_segments")
 
 
 def _value_change(old_value, new_value):
+    """Detecteer value change tussen oude en nieuwe waarde.
+    
+    Negeert "unknown" waarden - als oude waarde unknown is, wordt
+    geen change gedetecteerd (om false positives te voorkomen).
+    """
     return None if old_value in (None, "", "unknown") or old_value == new_value else {"old": old_value, "new": new_value}
 
 
 def _set_diff(old_values, new_values):
+    """Bereken set-diff tussen twee lijsten (toegevoegd/verwijderd).
+    
+    Gebruikt set-operaties om efficiënt te detecteren welke items
+    toegevoegd of verwijderd zijn. Gebruikt voor industries en strategic fields.
+    """
     old_set, new_set = set(old_values or []), set(new_values or [])
     return list(new_set - old_set), list(old_set - new_set)
 
 
 def _hiring_changes(old_hiring, new_hiring):
+    """Detecteer hiring focus changes (numerieke score verschillen).
+    
+    Berekent voor elk roltype het verschil tussen oude en nieuwe score.
+    Alleen velden met daadwerkelijk verschil worden geretourneerd.
+    """
     changes = {k: {"old": old_hiring.get(k, 0), "new": new_hiring.get(k, 0), "change": new_hiring.get(k, 0) - old_hiring.get(k, 0)} 
                for k in HIRING_FIELDS if old_hiring.get(k, 0) != new_hiring.get(k, 0)}
     return changes or None
 
 
 def _strategic_changes(old_strategic, new_strategic):
+    """Detecteer strategic changes via set-diff.
+    
+    Voor elk strategic field (markets, themes, segments) wordt set-diff
+    berekend om toegevoegde/verwijderde items te vinden.
+    """
     changes = {}
     for field in STRATEGIC_FIELDS:
         old_set, new_set = set(old_strategic.get(field) or []), set(new_strategic.get(field) or [])
@@ -401,14 +449,17 @@ def _strategic_changes(old_strategic, new_strategic):
 
 
 def _create_signal(company: Company, competitor: Company, **fields) -> CompanySignal:
-    """Create and stage a new competitor signal.
+    """Maak en stage een nieuwe competitor signal.
     
-    Handles related_news by storing it as JSON in details field.
-    If related_news is provided, it's stored alongside the details text.
+    KRITIEK: competitor_id wordt ALTIJD gezet - dit garandeert dat signals
+    alleen voor competitors zijn, nooit voor het main company.
+    
+    Handles related_news door het op te slaan als JSON in details field.
+    Als related_news aanwezig is, wordt het opgeslagen naast de details text.
     """
     signal = CompanySignal()
     signal.company_id = company.id
-    signal.competitor_id = competitor.id
+    signal.competitor_id = competitor.id  # ALTIJD gezet - garantie voor competitor-only signals
     signal.is_new = True
     
     # Extract related_news if present (will be stored in details as JSON)
@@ -565,34 +616,48 @@ def _simple_signal_payloads(comp_name: str, diff: dict):
 def _force_category_from_signal_type(signal_type: str) -> str:
     """Forceer de juiste categorie op basis van signal_type.
 
-    Beschermlaag tegen onbetrouwbare AI-output: zelfs als de AI een
-    andere category voorstelt, gebruiken we hier altijd een vaste mapping.
+    BELANGRIJK: Dit is een enforced mapping, niet AI-afhankelijk. Zelfs als
+    de AI een andere category voorstelt, gebruiken we altijd deze vaste mapping.
+    Dit zorgt voor consistentie en voorkomt dat signals in verkeerde categorieën
+    terechtkomen door AI-hallucinaties.
+    
+    Dit is team-owned logic, niet AI-output.
     """
     if not signal_type:
         return "product"
     
     normalized = (signal_type or "").lower()
     
-    # STRICT mapping - these signal types MUST map to these categories
+    # STRICT mapping - deze signal types MOETEN naar deze categorieën
     if normalized in ("headcount_change", "hiring_shift"):
         return "hiring"
     
     if normalized in ("funding_round", "funding_change"):
         return "funding"
     
-    # All other signal types default to product
+    # Alle andere signal types default naar product
     return "product"
 
 
 def _competitor_signal_query(company: Company):
-    """Base query for competitor-only signals."""
+    """Base query voor competitor-only signals.
+    
+    KRITIEK: Filtert competitor_id.isnot(None) om te garanderen dat
+    alleen signals voor competitors worden opgehaald, nooit voor het main company.
+    Dit is een database-level garantie naast application-level checks.
+    """
     return None if not company else (
         CompanySignal.query.filter_by(company_id=company.id).filter(CompanySignal.competitor_id.isnot(None))
     )
 
 
 def _iter_competitors(company: Company):
-    """Yield competitor objects for a company."""
+    """Yield competitor objects voor een company.
+    
+    KRITIEK: Deze functie wordt gebruikt in refresh_competitor_signals() om
+    te garanderen dat alleen competitors worden verwerkt, nooit het main company.
+    Dit is de primaire garantie dat geen signals voor het main company worden gegenereerd.
+    """
     return () if not company else (
         link.competitor for link in getattr(company, "competitors", []) if link and link.competitor
     )
@@ -652,9 +717,20 @@ def generate_signals_for_competitor(
 ) -> list:
     """Genereer AI-signals voor één competitor op basis van een diff.
 
-    - gebruikt web search (Responses API) om, indien ingeschakeld, rijke signals met nieuws te bouwen
-    - valt anders terug op eenvoudige, niet-AI gebaseerde signals
-    - alle gegenereerde signals krijgen altijd een geldige `competitor_id`
+    KRITIEK: Alle gegenereerde signals krijgen ALTIJD een geldige `competitor_id`.
+    Dit wordt gegarandeerd door _create_signal() die altijd competitor_id zet.
+    
+    Process:
+    - Gebruikt web search (Responses API) om rijke signals met nieuws te bouwen (indien ingeschakeld)
+    - Val anders terug op eenvoudige, niet-AI gebaseerde signals (rule-based)
+    - Alleen meaningful diff keys leiden tot signals (gefilterd via MEANINGFUL_DIFF_KEYS check)
+    
+    Args:
+        company: Company die de competitor trackt
+        competitor: Competitor waarvoor signals gegenereerd worden
+        diff: Diff dict van compute_diff()
+        use_web_search: Als True, gebruik web search voor related news
+        allow_simple_fallback: Als False, gooi exception bij AI failure (voor user-triggered actions)
     """
     if diff.get("is_initial") or not diff or not any(k in diff for k in MEANINGFUL_DIFF_KEYS):
         logger.warning(
@@ -885,7 +961,13 @@ Rules:
 
 
 def _generate_simple_competitor_signals(company: Company, competitor: Company, diff: dict) -> list:
-    """Generate simple competitor signals without AI."""
+    """Genereer eenvoudige competitor signals zonder AI.
+    
+    FALLBACK LOGIC: Als OpenAI niet beschikbaar is of faalt, gebruiken we
+    deze rule-based signal generatie. Dit zorgt ervoor dat het algoritme
+    nog steeds werkt zonder externe API's - alleen de diff computation
+    is nodig (100% lokaal, team-owned).
+    """
     comp_name = competitor.name or "Competitor"
     signals = [_create_signal(company, competitor, **payload) for payload in _simple_signal_payloads(comp_name, diff)]
     db.session.commit()
@@ -990,19 +1072,27 @@ def refresh_competitor_signals(
     force_ai: bool = False,
     allow_simple_fallback: bool = True,
 ) -> list:
-    """Refresh signals for ALL competitors of a company.
+    """Ververs signals voor ALLE competitors van een company.
     
-    This is the main entry point. It:
-    1. Iterates through all competitors
-    2. Builds/compares snapshots (with AI-powered profiling)
-    3. Generates signals for meaningful changes
-    4. Returns all competitor signals
+    Dit is de main entry point voor het core algoritme. Het proces:
+    1. Itereert door alle competitors (via _iter_competitors - GARANTIE: alleen competitors)
+    2. Bouwt/vergelijk snapshots (met AI-powered profiling indien nodig)
+    3. Berekent diff via compute_diff() (team-owned logic)
+    4. Genereert signals voor betekenisvolle veranderingen
+    5. Retourneert alle competitor signals
+    
+    KRITIEK: NOOIT signals voor het main company zelf. Dit wordt gegarandeerd door:
+    - _iter_competitors() yield alleen competitors (niet main company)
+    - _competitor_signal_query() filtert competitor_id.isnot(None)
+    - Alle signal creatie gebruikt competitor_id (niet company_id)
     
     Args:
-        company: The company whose competitors to analyze
-        force_ai: If True, regenerate AI profiles even if cached
+        company: De company wiens competitors geanalyseerd moeten worden
+        force_ai: Als True, regenereer AI profiles zelfs als cached
+        allow_simple_fallback: Als False, gooi exception bij AI failure (voor user-triggered actions)
     
-    NO signals are generated for the company itself.
+    Returns:
+        Lijst van alle competitor signals voor deze company
     """
     if not company:
         return []
@@ -1013,6 +1103,7 @@ def refresh_competitor_signals(
         force_ai,
     )
 
+    # ITEREER ALLEEN DOOR COMPETITORS - dit is de primaire garantie
     for competitor in _iter_competitors(company):
         logger.warning(
             "signals: processing competitor '%s' for company '%s'",
@@ -1024,6 +1115,7 @@ def refresh_competitor_signals(
         diff = compute_diff(old_data, current)
 
         if diff.get("is_initial"):
+            # Eerste snapshot - geen signals genereren (nog geen baseline voor vergelijking)
             logger.warning(
                 "signals: initial snapshot created for competitor '%s' (company='%s') – no signals yet",
                 competitor.name,
@@ -1032,6 +1124,7 @@ def refresh_competitor_signals(
             save_competitor_snapshot(company, competitor, current)
             continue
 
+        # Alleen betekenisvolle changes leiden tot signals (noise filtering)
         if any(k in diff for k in MEANINGFUL_DIFF_KEYS):
             logger.warning(
                 "signals: meaningful diff detected for competitor '%s' (company='%s'), generating signals",

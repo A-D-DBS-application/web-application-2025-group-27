@@ -9,17 +9,21 @@ from services.openai_helpers import responses_json_with_sources
 def generate_competitive_landscape(company: Company, competitors: List[Company]) -> Optional[str]:
     """Genereer een korte markt- en concurrentiesamenvatting voor een company.
 
+    Gebruikt OpenAI Responses API met web search om actuele informatie te vinden
+    over de competitive positie. Als de call faalt, retourneert None (caller
+    moet fallback gebruiken).
+
     Args:
         company: het bedrijf waarvoor we de landscape maken
         competitors: lijst van competitor-companies
 
     Returns:
-        Een tekstuele samenvatting van de competitive landscape, of None.
+        Een tekstuele samenvatting van de competitive landscape, of None bij fout.
     """
     if not company or not competitors:
         return None
     
-    # Lazy import to avoid circular dependency
+    # Lazy import om circulaire dependency te vermijden
     from utils.company_helpers import get_company_industries
     
     competitor_names = [c.name for c in competitors if c and c.name]
@@ -49,7 +53,7 @@ Please produce 5–7 sentences explaining:
 
 Keep the tone: clear, analytical, crisp, and business-focused."""
     
-    # Gebruik uitsluitend web search voor deze samenvatting.
+    # Gebruik uitsluitend web search voor deze samenvatting (voor actuele data)
     web_prompt = f"""Research the competitive landscape for '{company.name}' and generate a short, factual summary.
 
 Search the web for recent information about:
@@ -70,6 +74,7 @@ Return ONLY the summary text, no JSON or markdown."""
     )
     if not web_result or not web_result.get("data"):
         return None
+    # Responses API kan verschillende data formats retourneren - probeer alle mogelijkheden
     data = web_result.get("data", {})
     summary = data.get("summary") or data.get("text") or (str(data) if isinstance(data, dict) else "")
     return summary.strip() if summary and summary.strip() else None

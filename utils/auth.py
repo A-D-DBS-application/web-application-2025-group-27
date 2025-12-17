@@ -1,4 +1,4 @@
-"""Authentication utilities - session management and decorators."""
+"""Authenticatie utilities - session management en decorators."""
 
 import uuid
 from functools import wraps
@@ -11,18 +11,31 @@ from models import User
 
 
 def login_user(user: User) -> None:
-    """Store user ID in session."""
+    """Sla user ID op in session.
+    
+    Dit is de enige manier om een gebruiker "in te loggen" - er is geen
+    password verificatie in deze MVP (email-only login).
+    """
     session["user_id"] = str(user.id)
 
 
 def _reset_context() -> None:
+    """Reset Flask context - gebruik bij logout of invalid session.
+    
+    Verwijdert alle session data en zet g.current_user en g.current_company
+    op None. Dit zorgt ervoor dat de gebruiker als "niet ingelogd" wordt gezien.
+    """
     session.clear()
     g.current_user = None
     g.current_company = None
 
 
 def get_current_user() -> Optional[User]:
-    """Load current user from session and set g.current_user/g.current_company."""
+    """Laad huidige gebruiker uit session en zet g.current_user/g.current_company.
+    
+    Deze functie wordt aangeroepen in app.py via before_request hook.
+    Als er geen geldige session is, wordt de context gereset.
+    """
     user_id = session.get("user_id")
     if not user_id:
         _reset_context()
@@ -30,6 +43,7 @@ def get_current_user() -> Optional[User]:
     try:
         user_uuid = uuid.UUID(user_id)
     except (TypeError, ValueError):
+        # Ongeldige UUID in session - reset context
         _reset_context()
         return None
     user = db.session.query(User).filter(User.id == user_uuid).first()
@@ -38,12 +52,17 @@ def get_current_user() -> Optional[User]:
         g.current_company = user.company if user.company_id else None
         return user
     else:
+        # Gebruiker niet gevonden of niet actief - reset context
         _reset_context()
         return None
 
 
 def require_login(view_func):
-    """Decorator to require authenticated user."""
+    """Decorator om te vereisen dat gebruiker ingelogd is.
+    
+    Als gebruiker niet ingelogd is, redirect naar login pagina met
+    "next" parameter zodat gebruiker na login terugkomt op dezelfde pagina.
+    """
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         if not getattr(g, "current_user", None):

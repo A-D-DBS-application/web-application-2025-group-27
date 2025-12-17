@@ -1,7 +1,6 @@
-"""Authenticatie routes - login, signup en logout.
+"""Authenticatie routes - login, signup en logout."""
 
-"""
-
+import logging
 from typing import List, Optional, cast
 
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
@@ -97,22 +96,22 @@ def login():
     login_user(user)
     
     # Probeer competitor signals en rivals te verversen bij login.
-    # Dit gebeurt in de achtergrond: fouten blokkeren de login niet.
+    # Dit gebeurt in de achtergrond: fouten blokkeren de login niet, maar worden wel gelogd.
     company_obj = cast(Optional[Company], getattr(user, "company", None))
     if company_obj:
         from services.signals import refresh_competitor_signals
         try:
             refresh_competitor_signals(company_obj)
-        except Exception:
-            # Login mag nooit falen door een fout in AI/websearch.
-            pass
+        except Exception as e:
+            # Login mag nooit falen door een fout in AI/websearch, maar log de fout
+            logging.warning("Failed to refresh competitor signals on login: %s", e, exc_info=True)
         
         # Probeer bij elke login de rivals te verversen met recente OpenAI-data.
         # Dit gebruikt OpenAI met web search, maar mag de login nooit breken.
         try:
             refresh_competitors(company_obj)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning("Failed to refresh competitors on login: %s", e, exc_info=True)
     
     # Na een geslaagde login altijd naar het dashboard (of "next" parameter)
     return redirect(request.args.get("next") or url_for("main.homepage"))
@@ -180,10 +179,16 @@ def signup():
     # 5. Verrijk company data en haal concurrenten op.
     #    Deze stappen zijn belangrijk, maar mogen de signup nooit breken.
     def _safe_call(func, *args, **kwargs):
-        """Voer een functie uit zonder dat fouten de signup blokkeren."""
+        """Voer een functie uit zonder dat fouten de signup blokkeren.
+        
+        Background enrichment (OpenAI calls) mag signup niet blokkeren.
+        Fouten worden gelogd maar signup gaat door met basisdata.
+        """
         try:
             return func(*args, **kwargs)
-        except Exception:
+        except Exception as e:
+            # Log errors voor debugging, maar blokkeer signup niet
+            logging.warning("Background enrichment failed during signup (%s): %s", func.__name__, e, exc_info=True)
             return None
     
     _safe_call(enrich_company_if_needed, company, company_domain)
@@ -227,6 +232,9 @@ def signup():
 
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
-    """Handle user logout."""
+    """Behandel user logout.
+    
+    Verwijdert alle session data en redirect naar homepage.
+    """
     session.clear()
     return redirect(url_for("main.homepage"))

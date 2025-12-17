@@ -1,4 +1,4 @@
-"""Simplified database models for MVP."""
+"""Vereenvoudigde database modellen voor MVP."""
 
 import uuid
 from datetime import datetime
@@ -9,7 +9,11 @@ from app import db
 
 
 class User(db.Model):
-    """User model - simplified from Account/Profile separation."""
+    """Gebruikersmodel - vereenvoudigd van Account/Profile scheiding.
+    
+    Elke gebruiker hoort bij één company (via company_id). Als de company
+    verwijderd wordt, wordt company_id op NULL gezet (SET NULL).
+    """
     __tablename__ = "user"
     
     id = db.Column(
@@ -35,7 +39,12 @@ class User(db.Model):
 
 
 class Company(db.Model):
-    """Company model - simplified for MVP."""
+    """Bedrijfsmodel - vereenvoudigd voor MVP.
+    
+    Company is self-referential: een company kan zowel "main company" zijn
+    (die anderen trackt) als "competitor" zijn (die getrackt wordt door anderen).
+    Dit wordt gehandhaafd via CompanyCompetitor relaties.
+    """
     __tablename__ = "company"
     
     id = db.Column(
@@ -50,12 +59,12 @@ class Company(db.Model):
     headline = db.Column(db.Text)
     number_of_employees = db.Column(db.Integer)
     funding = db.Column(db.BigInteger)
-    industry = db.Column(db.String(255))  # Legacy single industry field (kept for compatibility)
+    industry = db.Column(db.String(255))  # Legacy single industry veld (behouden voor compatibiliteit)
     country = db.Column(db.String(255))
     
     # Metadata
-    updated_at = db.Column(db.DateTime)  # Last update timestamp from API
-    competitive_landscape = db.Column(db.Text)  # AI-generated competitive landscape summary
+    updated_at = db.Column(db.DateTime)  # Laatste update timestamp van API
+    competitive_landscape = db.Column(db.Text)  # AI-gegenereerde competitive landscape samenvatting
     
     users = db.relationship("User", back_populates="company")
     competitors = db.relationship(
@@ -88,7 +97,11 @@ class Company(db.Model):
 
 
 class Industry(db.Model):
-    """Industry catalogue - many companies can belong to many industries."""
+    """Industrie catalogus - many-to-many relatie met companies.
+    
+    Via CompanyIndustry kunnen companies meerdere industries hebben
+    en industries kunnen meerdere companies bevatten.
+    """
     __tablename__ = "industries"
     
     id = db.Column(
@@ -111,17 +124,17 @@ class Industry(db.Model):
 
 
 class CompanyIndustry(db.Model):
-    """Bridge table mapping companies to industries (many-to-many).
+    """Bridge tabel die companies aan industries koppelt (many-to-many).
     
-    Uses a composite primary key (company_id, industry_id) to allow:
-    - One company to have multiple industries
-    - One industry to have multiple companies
-    - Preventing duplicate links between the same company and industry
+    Gebruikt een composite primary key (company_id, industry_id) om te zorgen dat:
+    - Een company meerdere industries kan hebben
+    - Een industry meerdere companies kan bevatten
+    - Duplicate links tussen dezelfde company en industry voorkomen worden
     """
     __tablename__ = "company_industry"
     
-    # Composite primary key: both columns together form the unique constraint
-    # This allows a company to have multiple industries (many-to-many relationship)
+    # Composite primary key: beide kolommen vormen samen de unique constraint
+    # Dit maakt many-to-many relatie mogelijk zonder extra unique index
     company_id = db.Column(
         UUID(as_uuid=True),
         db.ForeignKey("company.id", ondelete="CASCADE"),
@@ -143,16 +156,17 @@ class CompanyIndustry(db.Model):
 
 
 class CompanySnapshot(db.Model):
-    """Snapshot of competitor data for change detection.
+    """Snapshot van competitor data voor change detection.
     
-    Snapshots are taken for COMPETITORS only, not for the main company.
+    KRITIEK: Snapshots worden ALLEEN gemaakt voor COMPETITORS, nooit voor het main company.
+    Dit wordt gehandhaafd in services/signals.py - alleen _iter_competitors() wordt gebruikt.
     """
     __tablename__ = "company_snapshot"
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     company_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=False)
     competitor_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=True)
-    data = db.Column(db.Text, nullable=False)  # JSON snapshot
+    data = db.Column(db.Text, nullable=False)  # JSON snapshot met basic, organization, hiring_focus, strategic_profile
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     company = db.relationship("Company", foreign_keys=[company_id], back_populates="snapshots")
@@ -163,21 +177,22 @@ class CompanySnapshot(db.Model):
 
 
 class CompanySignal(db.Model):
-    """AI-generated signals/alerts for COMPETITOR changes.
+    """AI-gegenereerde signals/alerts voor COMPETITOR veranderingen.
     
-    Signals are generated ONLY for competitors, never for the main company.
+    KRITIEK: Signals worden ALLEEN gegenereerd voor competitors, nooit voor het main company.
+    Dit wordt gehandhaafd via _competitor_signal_query() die competitor_id.isnot(None) filtert.
     """
     __tablename__ = "company_signal"
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     company_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=False)
     competitor_id = db.Column(UUID(as_uuid=True), db.ForeignKey("company.id", ondelete="CASCADE"), nullable=True)
-    signal_type = db.Column(db.String(64))  # headcount_change, industry_shift, etc.
-    category = db.Column(db.String(32))  # hiring, product, funding
-    severity = db.Column(db.String(16))  # low, medium, high
-    message = db.Column(db.Text)  # Short UI-ready message
-    details = db.Column(db.Text)  # Longer explanation
-    source_url = db.Column(db.Text)  # URL to the source of information (news article, company page, etc.)
+    signal_type = db.Column(db.String(64))  # headcount_change, industry_shift, hiring_shift, market_expansion, etc.
+    category = db.Column(db.String(32))  # hiring, product, funding (enforced via _force_category_from_signal_type)
+    severity = db.Column(db.String(16))  # low, medium, high (gebaseerd op competitieve impact)
+    message = db.Column(db.Text)  # Korte UI-ready message
+    details = db.Column(db.Text)  # Langere uitleg (kan JSON bevatten met related_news)
+    source_url = db.Column(db.Text)  # URL naar bron (nieuwsartikel, company pagina, etc.)
     is_new = db.Column(db.Boolean, default=True, nullable=False)  # Unread tracking
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -189,7 +204,11 @@ class CompanySignal(db.Model):
 
 
 class CompanyCompetitor(db.Model):
-    """Simple competitor relationship - bridge table."""
+    """Eenvoudige competitor relatie - bridge tabel.
+    
+    Composite primary key voorkomt duplicate links. CASCADE delete zorgt
+    dat competitor links verwijderd worden als company of competitor verwijderd wordt.
+    """
     __tablename__ = "company_competitor"
     
     company_id = db.Column(

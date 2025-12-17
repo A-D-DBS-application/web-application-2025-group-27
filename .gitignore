@@ -34,10 +34,13 @@ bin/
 include/
 
 # Project-specific directories
+# ignore all files in docs/ except ERD.md
 docs/
+!docs/ERD.md
 backups/
 .cursor/
-migrations/
+# migrations/ - now tracked for academic submission (migration files needed)
+# migrations/versions/__pycache__/ - still ignored below
 tools/
 TODO_FUTURE.md
 
@@ -77,6 +80,7 @@ backups/*.sql
 !backups/README.md
 
 # Testing
+tests/
 .pytest_cache/
 .coverage
 htmlcov/
