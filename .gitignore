@@ -35,7 +35,8 @@ include/
 
 # Project-specific directories
 # ignore all files in docs/ except ERD.md
-docs/
+docs/*
+!docs/
 !docs/ERD.md
 backups/
 .cursor/
