@@ -97,6 +97,6 @@ De user stories voor deze MVP zijn gedocumenteerd in een word-bestand.
 - **Agile Process**  
   Sprint planning en feedback is gedocumenteerd via het Miro Kanban board.  
   Partner feedback sessies met StarApps (Jeroen Vroman) zijn uitgevoerd tijdens Sprint 1:
-  - [Sprint 1 Feedback Sessie 1](https://drive.google.com/file/d/1zhyswnSrefaYdzM4G6vYLeBp9g-qgQ4n/view?usp=share_link)
-  - [Sprint 1 Feedback Sessie 2](https://drive.google.com/file/d/1HsMQHlAAv_ODQGJebyDVyl0ITxNAOx7H/view?usp=sharing)
-  - [Sprint 1 Feedback Sessie 3](https://drive.google.com/file/d/11P3shbbTTjRxh4M5L11y_ps1Qwbu29xg/view?usp=sharing)
+  - [Sprint 2 Feedback Sessie 1](https://drive.google.com/file/d/1zhyswnSrefaYdzM4G6vYLeBp9g-qgQ4n/view?usp=share_link)
+  - [Sprint 2 Feedback Sessie 2](https://drive.google.com/file/d/1HsMQHlAAv_ODQGJebyDVyl0ITxNAOx7H/view?usp=sharing)
+  - [Sprint 3 Feedback Sessie 3](https://drive.google.com/file/d/11P3shbbTTjRxh4M5L11y_ps1Qwbu29xg/view?usp=sharing)
