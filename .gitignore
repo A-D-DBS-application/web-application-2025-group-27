@@ -34,10 +34,7 @@ bin/
 include/
 
 # Project-specific directories
-# ignore all files in docs/ except ERD.md
-docs/*
-!docs/
-!docs/ERD.md
+docs/
 backups/
 .cursor/
 # migrations/ - now tracked for academic submission (migration files needed)
