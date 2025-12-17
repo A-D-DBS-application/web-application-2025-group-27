@@ -15,7 +15,6 @@ from utils.company_helpers import (
     enrich_company_if_needed,
     generate_landscape_if_needed,
     get_company_competitors,
-    refresh_competitors,
 )
 
 auth_bp = Blueprint("auth", __name__)
@@ -62,7 +61,7 @@ def login():
         - zoekt de gebruiker in de database
         - controleert of de gebruiker actief is
         - logt de gebruiker in
-        - triggert een niet-blockende refresh van competitor signals
+        - PERFORMANCE: Geen snapshot refresh bij login (alleen bij expliciete refresh knop)
     """
     redirect_resp = _redirect_authenticated()
     if redirect_resp:
@@ -95,23 +94,9 @@ def login():
     # Log de gebruiker in (zet sessie + g.current_user / g.current_company)
     login_user(user)
     
-    # Probeer competitor signals en rivals te verversen bij login.
-    # Dit gebeurt in de achtergrond: fouten blokkeren de login niet, maar worden wel gelogd.
-    company_obj = cast(Optional[Company], getattr(user, "company", None))
-    if company_obj:
-        from services.signals import refresh_competitor_signals
-        try:
-            refresh_competitor_signals(company_obj)
-        except Exception as e:
-            # Login mag nooit falen door een fout in AI/websearch, maar log de fout
-            logging.warning("Failed to refresh competitor signals on login: %s", e, exc_info=True)
-        
-        # Probeer bij elke login de rivals te verversen met recente OpenAI-data.
-        # Dit gebruikt OpenAI met web search, maar mag de login nooit breken.
-        try:
-            refresh_competitors(company_obj)
-        except Exception as e:
-            logging.warning("Failed to refresh competitors on login: %s", e, exc_info=True)
+    # PERFORMANCE: Snapshots worden NIET gerefreshed bij login - alleen bij expliciete refresh knop.
+    # Dit verbetert login performance aanzienlijk (geen AI calls bij elke login).
+    # Gebruikers kunnen handmatig "Refresh Signals" gebruiken wanneer ze nieuwe data willen.
     
     # Na een geslaagde login altijd naar het dashboard (of "next" parameter)
     return redirect(request.args.get("next") or url_for("main.homepage"))
