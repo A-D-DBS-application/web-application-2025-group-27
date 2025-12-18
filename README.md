@@ -84,7 +84,7 @@ De user stories voor deze MVP zijn gedocumenteerd in een word-bestand.
   [Live App](https://rival-2z3l.onrender.com)
 
 - **Demo video**  
-  [Demo Video](https://placeholder-demo-video-link)
+  [Demo Video](https://drive.google.com/file/d/1ZqCnuZURTqDIqdoQ94JPraPxbrtz1ZLk/view?usp=sharing)
 
 - **UI prototype**  
   Zie de map `images/ui-prototype/` voor statische screenshots van de belangrijkste schermen.  
