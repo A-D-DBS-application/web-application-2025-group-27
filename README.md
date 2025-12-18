@@ -83,6 +83,9 @@ De user stories voor deze MVP zijn gedocumenteerd in een word-bestand.
   De applicatie is live beschikbaar op Render:  
   [Live App](https://rival-2z3l.onrender.com)
 
+- **Demo video**  
+  [Demo Video](https://placeholder-demo-video-link)
+
 - **UI prototype**  
   Zie de map `images/ui-prototype/` voor statische screenshots van de belangrijkste schermen.  
   Live prototype: [Lovable Prototype](https://id-preview--16083f01-3507-479c-aa76-f1d19ec41eb4.lovable.app/#industries)

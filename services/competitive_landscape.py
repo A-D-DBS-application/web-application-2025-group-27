@@ -3,19 +3,16 @@
 from typing import List, Optional
 
 from models import Company
-from services.openai_helpers import responses_json_with_sources
+from services.openai_helpers import chat_json, responses_json_with_sources
 
 
-def generate_competitive_landscape(company: Company, competitors: List[Company]) -> Optional[str]:
+def generate_competitive_landscape(company: Company, competitors: List[Company], use_web_search: bool = False) -> Optional[str]:
     """Genereer een korte markt- en concurrentiesamenvatting voor een company.
-
-    Gebruikt OpenAI Responses API met web search om actuele informatie te vinden
-    over de competitive positie. Als de call faalt, retourneert None (caller
-    moet fallback gebruiken).
 
     Args:
         company: het bedrijf waarvoor we de landscape maken
         competitors: lijst van competitor-companies
+        use_web_search: Als True, gebruik web search (langzamer maar accurater). Standaard False voor performance.
 
     Returns:
         Een tekstuele samenvatting van de competitive landscape, of None bij fout.
@@ -53,8 +50,9 @@ Please produce 5–7 sentences explaining:
 
 Keep the tone: clear, analytical, crisp, and business-focused."""
     
-    # Gebruik uitsluitend web search voor deze samenvatting (voor actuele data)
-    web_prompt = f"""Research the competitive landscape for '{company.name}' and generate a short, factual summary.
+    if use_web_search:
+        # Gebruik web search voor actuele data
+        web_prompt = f"""Research the competitive landscape for '{company.name}' and generate a short, factual summary.
 
 Search the web for recent information about:
 1. Current market trends in their industry
@@ -66,15 +64,45 @@ Search the web for recent information about:
 
 Return ONLY the summary text, no JSON or markdown."""
 
-    web_result = responses_json_with_sources(
-        web_prompt,
-        tools=[{"type": "web_search"}],
-        tool_choice="auto",
-        context=f"competitive landscape for {company.name}",
-    )
-    if not web_result or not web_result.get("data"):
-        return None
-    # Responses API kan verschillende data formats retourneren - probeer alle mogelijkheden
-    data = web_result.get("data", {})
-    summary = data.get("summary") or data.get("text") or (str(data) if isinstance(data, dict) else "")
-    return summary.strip() if summary and summary.strip() else None
+        web_result = responses_json_with_sources(
+            web_prompt,
+            tools=[{"type": "web_search"}],
+            tool_choice="auto",
+            context=f"competitive landscape for {company.name}",
+        )
+        if not web_result or not web_result.get("data"):
+            return None
+        # Responses API kan verschillende data formats retourneren - probeer alle mogelijkheden
+        data = web_result.get("data", {})
+        summary = data.get("summary") or data.get("text") or (str(data) if isinstance(data, dict) else "")
+        return summary.strip() if summary and summary.strip() else None
+    else:
+        # Gebruik reguliere chat API (sneller) - haal direct text response op
+        prompt = f"""{base_content}
+
+Return ONLY the summary text, no JSON or markdown."""
+        
+        # Gebruik chat_json maar met response_format=None om plain text te krijgen
+        # We moeten de raw response ophalen, niet geparsed JSON
+        from services.openai_helpers import get_openai_client
+        client = get_openai_client()
+        if not client:
+            return None
+        
+        try:
+            payload = [
+                {"role": "system", "content": "You are a business analyst. Provide clear, analytical, and business-focused competitive intelligence summaries. Always respond with plain text only, no JSON or markdown."},
+                {"role": "user", "content": prompt}
+            ]
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=payload,
+                temperature=0.3,
+                max_tokens=400,
+                # Geen response_format - dit geeft plain text
+            )
+            message = resp.choices[0].message if resp and resp.choices else None
+            summary = message.content if message and message.content else None
+            return summary.strip() if summary and summary.strip() else None
+        except Exception:
+            return None

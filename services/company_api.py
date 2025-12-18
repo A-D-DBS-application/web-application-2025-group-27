@@ -254,15 +254,15 @@ def apply_company_data(company, api_data: Dict) -> None:
         company.updated_at = api_data["updated_at"]
 
 
-def fetch_openai_funding(company_name: Optional[str] = None, domain: Optional[str] = None) -> Optional[int]:
-    """Haal funding / market cap op via OpenAI met web search.
+def fetch_openai_funding(company_name: Optional[str] = None, domain: Optional[str] = None, use_web_search: bool = False) -> Optional[int]:
+    """Haal funding / market cap op via OpenAI.
     
     For publicly traded companies, returns market capitalization instead of funding.
     
     Args:
         company_name: Company name (e.g., 'Nike')
         domain: Company domain (e.g., 'nike.com')
-        use_web_search: If True, use web search (slower but more current). Default False for performance.
+        use_web_search: Als True, gebruik web search (langzamer maar accurater). Standaard False voor performance.
         
     Returns:
         Funding amount or market cap as integer (in base currency units), or None if not found/fails
@@ -271,14 +271,7 @@ def fetch_openai_funding(company_name: Optional[str] = None, domain: Optional[st
     if not search_query:
         return None
     
-    # Gebruik altijd web search voor deze informatie.
-    web_prompt = f"""Research the company "{search_query}" and find their current funding or market capitalization.
-
-Search the web for recent information about:
-1. Recent funding rounds (seed, Series A, B, C, etc.) for private companies
-2. Total funding raised across all rounds
-3. Current market capitalization for publicly traded companies
-4. Latest financial information
+    prompt = f"""Find the current funding or market capitalization for the company "{search_query}".
 
 IMPORTANT:
 - For PRIVATELY HELD companies: Provide the total funding amount raised across all funding rounds.
@@ -297,22 +290,47 @@ Where:
 
 For listed companies, always use market capitalization as it is more accurate and relevant than funding."""
 
-    return _fetch_numeric_value_with_web_search(
-        search_query=search_query,
-        field_name="funding",
-        suffixes={"b": 1_000_000_000, "m": 1_000_000, "k": 1_000},
-        log_label="funding/market cap",
-        prompt=web_prompt,
-    )
+    if use_web_search:
+        # Gebruik web search voor actuele informatie
+        web_prompt = f"""Research the company "{search_query}" and find their current funding or market capitalization.
+
+Search the web for recent information about:
+1. Recent funding rounds (seed, Series A, B, C, etc.) for private companies
+2. Total funding raised across all rounds
+3. Current market capitalization for publicly traded companies
+4. Latest financial information
+
+{prompt}"""
+
+        return _fetch_numeric_value_with_web_search(
+            search_query=search_query,
+            field_name="funding",
+            suffixes={"b": 1_000_000_000, "m": 1_000_000, "k": 1_000},
+            log_label="funding/market cap",
+            prompt=web_prompt,
+        )
+    else:
+        # Gebruik reguliere chat API (sneller)
+        data = chat_json(
+            system_prompt="You are a helpful assistant that provides accurate company financial information. You must always respond with valid JSON only, no additional text.",
+            user_prompt=prompt,
+            model="gpt-4o-mini",
+            temperature=0.3,
+            max_tokens=300,
+            context=f"funding/market cap for {search_query}",
+        )
+        if not data:
+            return None
+        return _parse_numeric_value(data.get("funding"), {"b": 1_000_000_000, "m": 1_000_000, "k": 1_000})
 
 
-def fetch_openai_team_size(company_name: Optional[str] = None, domain: Optional[str] = None) -> Optional[int]:
-    """Haal teamgrootte (aantal werknemers) op via OpenAI met web search.
+def fetch_openai_team_size(company_name: Optional[str] = None, domain: Optional[str] = None, use_web_search: bool = False) -> Optional[int]:
+    """Haal teamgrootte (aantal werknemers) op via OpenAI.
     
     Args:
         company_name: Company name (e.g., 'Nike')
         domain: Company domain (e.g., 'nike.com')
-        use_web_search: If True, use web search (slower but more current). Default False for performance.
+        use_web_search: Als True, gebruik web search (langzamer maar accurater). Standaard False voor performance.
         
     Returns:
         Number of employees as integer, or None if not found/fails
@@ -321,14 +339,7 @@ def fetch_openai_team_size(company_name: Optional[str] = None, domain: Optional[
     if not search_query:
         return None
     
-    # Gebruik altijd web search voor deze informatie.
-    web_prompt = f"""Research the company "{search_query}" and find their current number of employees (team size).
-
-Search the web for recent information about:
-1. Current employee count
-2. Recent hiring or layoff announcements
-3. Company size information from official sources
-4. Latest workforce statistics
+    prompt = f"""Find the current number of employees (team size) for the company "{search_query}".
 
 You must respond with valid JSON in this exact format:
 {{
@@ -337,22 +348,47 @@ You must respond with valid JSON in this exact format:
 
 Where employees is the total number of employees as an integer. Use null if the information is not available."""
 
-    return _fetch_numeric_value_with_web_search(
-        search_query=search_query,
-        field_name="employees",
-        suffixes={"m": 1_000_000, "k": 1_000},
-        log_label="team size",
-        prompt=web_prompt,
-    )
+    if use_web_search:
+        # Gebruik web search voor actuele informatie
+        web_prompt = f"""Research the company "{search_query}" and find their current number of employees (team size).
+
+Search the web for recent information about:
+1. Current employee count
+2. Recent hiring or layoff announcements
+3. Company size information from official sources
+4. Latest workforce statistics
+
+{prompt}"""
+
+        return _fetch_numeric_value_with_web_search(
+            search_query=search_query,
+            field_name="employees",
+            suffixes={"m": 1_000_000, "k": 1_000},
+            log_label="team size",
+            prompt=web_prompt,
+        )
+    else:
+        # Gebruik reguliere chat API (sneller)
+        data = chat_json(
+            system_prompt="You are a helpful assistant that provides accurate company information. You must always respond with valid JSON only, no additional text.",
+            user_prompt=prompt,
+            model="gpt-4o-mini",
+            temperature=0.3,
+            max_tokens=200,
+            context=f"team size for {search_query}",
+        )
+        if not data:
+            return None
+        return _parse_numeric_value(data.get("employees"), {"m": 1_000_000, "k": 1_000})
 
 
-def fetch_openai_description(company_name: Optional[str] = None, domain: Optional[str] = None) -> Optional[str]:
-    """Haal een bedrijfsbeschrijving op via OpenAI met web search.
+def fetch_openai_description(company_name: Optional[str] = None, domain: Optional[str] = None, use_web_search: bool = False) -> Optional[str]:
+    """Haal een bedrijfsbeschrijving op via OpenAI.
     
     Args:
         company_name: Company name (e.g., 'Nike')
         domain: Company domain (e.g., 'nike.com')
-        use_web_search: If True, use web search (slower but more current). Default False for performance.
+        use_web_search: Als True, gebruik web search (langzamer maar accurater). Standaard False voor performance.
         
     Returns:
         Company description as string, or None if not found/fails
@@ -361,8 +397,24 @@ def fetch_openai_description(company_name: Optional[str] = None, domain: Optiona
     if not search_query:
         return None
     
-    # Gebruik altijd web search voor deze beschrijving.
-    web_prompt = f"""Research the company "{search_query}" and provide a comprehensive description.
+    prompt = f"""Provide a comprehensive description of the company "{search_query}".
+
+Provide a concise but informative description (2-4 sentences) in a professional tone suitable for a company profile page. Include:
+1. What the company does
+2. Its main products or services
+3. Its market focus and positioning
+4. Key differentiators or notable aspects
+
+You must respond with valid JSON in this exact format:
+{{
+    "description": "Company description text here..."
+}}
+
+Use null for description if information is not available."""
+
+    if use_web_search:
+        # Gebruik web search voor actuele informatie
+        web_prompt = f"""Research the company "{search_query}" and provide a comprehensive description.
 
 Search the web for recent information about:
 1. What the company does
@@ -380,13 +432,24 @@ You must respond with valid JSON in this exact format:
 
 Use null for description if information is not available."""
 
-    web_result = responses_json_with_sources(
-        web_prompt,
-        tools=[{"type": "web_search"}],
-        tool_choice="auto",
-        context=f"description for {search_query}",
-    )
-    data = web_result["data"] if web_result and web_result.get("data") else None
+        web_result = responses_json_with_sources(
+            web_prompt,
+            tools=[{"type": "web_search"}],
+            tool_choice="auto",
+            context=f"description for {search_query}",
+        )
+        data = web_result["data"] if web_result and web_result.get("data") else None
+    else:
+        # Gebruik reguliere chat API (sneller)
+        data = chat_json(
+            system_prompt="You are a helpful assistant that provides accurate company descriptions. You must always respond with valid JSON only, no additional text.",
+            user_prompt=prompt,
+            model="gpt-4o-mini",
+            temperature=0.3,
+            max_tokens=300,
+            context=f"description for {search_query}",
+        )
+    
     if not data:
         return None
     

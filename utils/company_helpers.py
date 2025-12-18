@@ -40,12 +40,15 @@ def get_company_competitors(company: Company) -> List[Company]:
     return _collect_related(company, "competitors", "competitor")
 
 
-def _apply_openai_overrides(company: Company, company_name: Optional[str], company_domain: Optional[str]) -> None:
+def _apply_openai_overrides(company: Company, company_name: Optional[str], company_domain: Optional[str], use_web_search: bool = False) -> None:
     """Pas OpenAI data toe op company velden (team size, beschrijving, funding).
     
     KRITIEK: OpenAI data krijgt ALTIJD voorrang - dit overschrijft bestaande waarden.
     Dit is bewust: OpenAI data is accurater dan handmatig ingevoerde data.
     Als OpenAI call faalt, worden originele waarden hersteld via nested transaction rollback.
+    
+    Args:
+        use_web_search: Als True, gebruik web search (langzamer). Standaard False voor performance.
     """
     if not (company_name or company_domain):
         return
@@ -56,13 +59,13 @@ def _apply_openai_overrides(company: Company, company_name: Optional[str], compa
     )
     try:
         with db.session.begin_nested():
-            team_size = fetch_openai_team_size(company_name=company_name, domain=company_domain)
+            team_size = fetch_openai_team_size(company_name=company_name, domain=company_domain, use_web_search=use_web_search)
             if team_size is not None:
                 company.number_of_employees = team_size
-            description = fetch_openai_description(company_name=company_name, domain=company_domain)
+            description = fetch_openai_description(company_name=company_name, domain=company_domain, use_web_search=use_web_search)
             if description:
                 company.headline = description
-            funding = fetch_openai_funding(company_name=company_name, domain=company_domain)
+            funding = fetch_openai_funding(company_name=company_name, domain=company_domain, use_web_search=use_web_search)
             if funding is not None:
                 company.funding = funding
     except Exception as exc:
@@ -71,16 +74,19 @@ def _apply_openai_overrides(company: Company, company_name: Optional[str], compa
         logger.error("Failed to fetch OpenAI data for %s: %s", company_name or company_domain, exc, exc_info=True)
 
 
-def enrich_company_if_needed(company: Company, domain: Optional[str] = None) -> None:
+def enrich_company_if_needed(company: Company, domain: Optional[str] = None, use_web_search: bool = False) -> None:
     """Verrijk company-data via OpenAI (team size, beschrijving, funding).
     
     Deze functie wordt aangeroepen tijdens signup en bij competitor toevoeging.
     Het is niet-blockend: als OpenAI faalt, blijft de company bestaan met basisdata.
+    
+    Args:
+        use_web_search: Als True, gebruik web search (langzamer). Standaard False voor performance.
     """
     if not company:
         return
     target_domain = domain or company.domain
-    _apply_openai_overrides(company, company.name, target_domain or company.domain)
+    _apply_openai_overrides(company, company.name, target_domain or company.domain, use_web_search=use_web_search)
 
 
 DEFAULT_LANDSCAPE = (
@@ -144,18 +150,21 @@ def _ensure_competitor_link(company: Company, competitor: Company) -> None:
         db.session.add(link)
 
 
-def add_competitor_from_data(company: Company, comp_data: dict) -> Optional[Company]:
+def add_competitor_from_data(company: Company, comp_data: dict, use_web_search: bool = False) -> Optional[Company]:
     """Voeg competitor relatie toe vanuit API payload.
     
     Maakt of vindt de competitor, verrijkt deze met OpenAI data (niet-blockend),
     en linkt deze aan de company. Als enrichment faalt, wordt de competitor
     nog steeds gelinkt (met basisdata).
+    
+    Args:
+        use_web_search: Als True, gebruik web search (langzamer). Standaard False voor performance.
     """
     competitor = _upsert_competitor(comp_data)
     if not competitor:
         return None
     try:
-        enrich_company_if_needed(competitor, comp_data.get("domain"))
+        enrich_company_if_needed(competitor, comp_data.get("domain"), use_web_search=use_web_search)
     except Exception as exc:
         # Log maar blokkeer niet - competitor wordt nog steeds gelinkt
         logger.error("Failed to enrich competitor %s: %s", competitor.name, exc, exc_info=True)
@@ -190,11 +199,14 @@ def refresh_competitors(company: Company) -> None:
         add_competitor_from_data(company, comp_data)
 
 
-def generate_landscape_if_needed(company: Company) -> None:
+def generate_landscape_if_needed(company: Company, use_web_search: bool = False) -> None:
     """Genereer competitive landscape als deze nog niet bestaat.
     
-    Gebruikt OpenAI met web search om een samenvatting te maken van de
-    competitive positie. Als generatie faalt, wordt DEFAULT_LANDSCAPE gebruikt.
+    Gebruikt OpenAI om een samenvatting te maken van de competitive positie.
+    Als generatie faalt, wordt DEFAULT_LANDSCAPE gebruikt.
+    
+    Args:
+        use_web_search: Als True, gebruik web search (langzamer). Standaard False voor performance.
     """
     if not company or (company.competitive_landscape or "").strip():
         return
@@ -204,7 +216,7 @@ def generate_landscape_if_needed(company: Company) -> None:
         return
     try:
         with db.session.begin_nested():
-            landscape = generate_competitive_landscape(company, competitors)
+            landscape = generate_competitive_landscape(company, competitors, use_web_search=use_web_search)
             company.competitive_landscape = landscape or DEFAULT_LANDSCAPE
     except Exception:
         # Fallback naar default als OpenAI call faalt
