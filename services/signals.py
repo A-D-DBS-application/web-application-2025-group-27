@@ -107,9 +107,9 @@ def build_competitor_snapshot(company: Company, competitor: Company, force_ai: b
     structured_data = {"employees": competitor.number_of_employees, "funding": competitor.funding,
                        "country": competitor.country, "industries": industries}
     
-    # Only use web search if force_ai is True (explicit refresh request)
-    # This improves performance by using cached snapshots when possible
-    ai_snapshot = _generate_ai_snapshot(company, competitor, industries, structured_data, use_web_search=force_ai)
+    # PERFORMANCE: Web search is volledig uitgeschakeld - gebruik altijd False
+    # Dit verbetert performance aanzienlijk (geen langzame web search calls)
+    ai_snapshot = _generate_ai_snapshot(company, competitor, industries, structured_data, use_web_search=False)
     return ai_snapshot if ai_snapshot else _build_basic_snapshot(competitor, industries)
 
 
@@ -712,7 +712,7 @@ def generate_signals_for_competitor(
     company: Company,
     competitor: Company,
     diff: dict,
-    use_web_search: bool = True,
+    use_web_search: bool = False,
     allow_simple_fallback: bool = True,
 ) -> list:
     """Genereer AI-signals voor één competitor op basis van een diff.
@@ -721,7 +721,7 @@ def generate_signals_for_competitor(
     Dit wordt gegarandeerd door _create_signal() die altijd competitor_id zet.
     
     Process:
-    - Gebruikt web search (Responses API) om rijke signals met nieuws te bouwen (indien ingeschakeld)
+    - Gebruikt reguliere chat API om signals te bouwen (web search is uitgeschakeld voor performance)
     - Val anders terug op eenvoudige, niet-AI gebaseerde signals (rule-based)
     - Alleen meaningful diff keys leiden tot signals (gefilterd via MEANINGFUL_DIFF_KEYS check)
     
@@ -729,7 +729,7 @@ def generate_signals_for_competitor(
         company: Company die de competitor trackt
         competitor: Competitor waarvoor signals gegenereerd worden
         diff: Diff dict van compute_diff()
-        use_web_search: Als True, gebruik web search voor related news
+        use_web_search: Als True, gebruik web search voor related news (standaard False voor performance)
         allow_simple_fallback: Als False, gooi exception bij AI failure (voor user-triggered actions)
     """
     if diff.get("is_initial") or not diff or not any(k in diff for k in MEANINGFUL_DIFF_KEYS):
@@ -1136,7 +1136,7 @@ def refresh_competitor_signals(
                 company,
                 competitor,
                 diff,
-                use_web_search=force_ai,
+                use_web_search=False,  # PERFORMANCE: Web search volledig uitgeschakeld
                 allow_simple_fallback=allow_simple_fallback,
             )
         else:

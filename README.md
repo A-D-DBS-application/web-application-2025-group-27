@@ -35,7 +35,7 @@ De applicatie helpt bedrijven hun concurrenten te volgen via gestructureerde pro
 
 - Snapshots: elke competitor krijgt een JSON-structuur met basic-, organisatie-, hiring- en strategische gegevens.
 - Diff-berekening: oude en nieuwe snapshots worden vergeleken; alleen vooraf gedefinieerde “meaningful keys” leiden tot een diff.
-- Signals: uit de diff worden gestructureerde signals afgeleid (type, categorie, boodschap, details); optioneel aangevuld met nieuws via web search.
+- Signals: uit de diff worden gestructureerde signals afgeleid (type, categorie, boodschap, details).
 
 ## Installatie en gebruik (lokaal)
 

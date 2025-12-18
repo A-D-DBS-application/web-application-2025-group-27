@@ -173,7 +173,7 @@ def add_competitor_from_data(company: Company, comp_data: dict, use_web_search: 
 
 
 def refresh_competitors(company: Company) -> None:
-    """Vervang competitor links met verse OpenAI resultaten via web search.
+    """Vervang competitor links met verse OpenAI resultaten.
     
     BELANGRIJK: Dit VERVANGT alle bestaande competitor links. Oude links worden
     verwijderd voordat nieuwe worden toegevoegd. Dit zorgt ervoor dat de
@@ -181,7 +181,7 @@ def refresh_competitors(company: Company) -> None:
     
     Process:
     - Verwijder eerst alle bestaande competitor-links voor deze company
-    - Vraag tot 10 mogelijke rivals op via OpenAI met web search (voor actuele data)
+    - Vraag tot 10 mogelijke rivals op via OpenAI (zonder web search voor performance)
     - Link maximaal 5 nieuwe rivals (met ander domein dan eigen company)
     """
     if not company or not company.domain:
@@ -189,8 +189,8 @@ def refresh_competitors(company: Company) -> None:
     # Verwijder alle bestaande links - vervang volledig met nieuwe data
     db.session.query(CompanyCompetitor).filter(CompanyCompetitor.company_id == company.id).delete()
     db.session.flush()
-    # Gebruik web search voor actuele competitive landscape data (expliciete refresh)
-    similar = fetch_openai_similar_companies(company_name=company.name, domain=company.domain, limit=10, use_web_search=True)
+    # PERFORMANCE: Web search is uitgeschakeld - gebruik reguliere chat API (veel sneller)
+    similar = fetch_openai_similar_companies(company_name=company.name, domain=company.domain, limit=10, use_web_search=False)
     base_domain = (company.domain or "").lower().strip()
     for comp_data in similar[:5]:
         comp_domain = (comp_data.get("domain") or "").lower().strip()
