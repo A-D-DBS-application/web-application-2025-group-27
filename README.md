@@ -86,6 +86,10 @@ De user stories voor deze MVP zijn gedocumenteerd in een word-bestand.
 - **Demo video**  
   [Demo Video](https://drive.google.com/file/d/1ZqCnuZURTqDIqdoQ94JPraPxbrtz1ZLk/view?usp=sharing)
 
+- **Presentatie (PowerPoint)**  
+  Zie `presentations/` voor de PowerPoint presentatie bestanden.  
+  [PowerPoint Presentatie](presentations/)
+
 - **UI prototype**  
   Zie de map `images/ui-prototype/` voor statische screenshots van de belangrijkste schermen.  
   Live prototype: [Lovable Prototype](https://id-preview--16083f01-3507-479c-aa76-f1d19ec41eb4.lovable.app/#industries)  
