@@ -88,14 +88,16 @@ De user stories voor deze MVP zijn gedocumenteerd in een word-bestand.
 
 - **UI prototype**  
   Zie de map `images/ui-prototype/` voor statische screenshots van de belangrijkste schermen.  
-  Live prototype: [Lovable Prototype](https://id-preview--16083f01-3507-479c-aa76-f1d19ec41eb4.lovable.app/#industries)
+  Live prototype: [Lovable Prototype](https://id-preview--16083f01-3507-479c-aa76-f1d19ec41eb4.lovable.app/#industries)  
+  [UI Screenshots](images/ui-prototype/)
 
 - **Kanban board**  
   Miro-bord voor sprint- en takenopvolging:  
   `https://miro.com/app/board/uXjVJwMn8m4=/`
 
 - **Database Schema (ERD)**  
-  Zie `docs/ERD.md` voor het volledige Entity Relationship Diagram met alle tabellen, relaties en constraints.
+  Zie `docs/ERD.md` voor het volledige Entity Relationship Diagram met alle tabellen, relaties en constraints.  
+  [ERD Afbeelding](images/database/ERD.png)
 
 - **Agile Process**  
   Sprint planning en feedback is gedocumenteerd via het Miro Kanban board.  
